@@ -6,6 +6,7 @@ HMC5883L compass;
 DualVNH5019MotorShield motor;
 
 int USalert = 3; // get low (near) signal from ultrasomic sensor through pin 3
+int alert;
 
 void setCompass() {
   int error = 0;
@@ -23,7 +24,7 @@ void setUSsensor() {
   int i;
 
   pinMode(USalert, INPUT);
-  uint8_t cmmdLow[4]={0x44,0x00,0x05,0x49}; //lower 8 bit of the threshold stored in address 0x00
+  uint8_t cmmdLow[4]={0x44,0x00,0x08,0x4c}; //lower 8 bit of the threshold stored in address 0x00
   uint8_t cmmdHigh[4]={0x44,0x01,0x00,0x45};  //higher 8 bit of the threshold stored in the address 0x01
   uint8_t cmmdAuto[4]={0x44,0x02,0xaa,0xf0};  // Autonomous mode. write 0xaa into address 0x02
  
@@ -56,7 +57,7 @@ void turn90() {
 
   motor.setM1Speed(0);
   motor.setM2Speed(0);
-  delay(100);
+  delay(200);
   motor.setM1Speed(100);
   motor.setM2Speed(-100);
   
@@ -68,27 +69,45 @@ void turn90() {
 }
 
 void goForward() {
-  motor.setM1Speed(100);
-  motor.setM2Speed(100);
+  motor.setM1Speed(150);
+  motor.setM2Speed(150);
+}
+
+void goStopTurn() {
+  motor.setM1Speed(0);
+  motor.setM2Speed(0);
+  delay(200);
+
+  motor.setM1Speed(-150);
+  motor.setM2Speed(150);
+
+  delay(500);
+
+  motor.setM1Speed(0);
+  motor.setM2Speed(0);
+  delay(200);
 }
 
 void setup() {
   Serial.begin(9600);
-  Wire.begin();
+//  Wire.begin();
 
   Serial.println("this is a simple go and turn");
 
   motor.init();
-  setCompass();
+  //setCompass();
   setUSsensor();
 
   //attachInterrupt(USalert, turn90, FALLING);
 }
 
 void loop() {
-  if (!USalert) {
-    Serial.println("a obstacle!")
-    turn90();
+  alert = digitalRead(USalert);
+  if (!alert) {
+    Serial.println("a obstacle!");
+    //turn90();
+
+    goStopTurn();
   } else {
     goForward();
   }

@@ -21,7 +21,7 @@ uint8_t cmmd3[4]={0x44,0x02,0xaa,0xf0};// Autonomous mode. write 0xaa into addre
 
 int i;
 int LED = 13;
-int TRIGGER = 5;
+int TRIGGER = 3;
 //volatile int state = LOW;
 
 void setup(){ 
@@ -37,16 +37,17 @@ void loop() {
   int res = digitalRead(TRIGGER);
   if (!res) {
     Serial.print("result: ");
-   Serial.print(TRIGGER);
-   Serial.println("near!");
-    for (i=0; i<10; i++) {
+    Serial.print(TRIGGER);
+    Serial.println("near!");
+
+    for (i=0; i<5; i++) {
       digitalWrite(LED, HIGH);
       delay(100);
       digitalWrite(LED, LOW);
       delay(100);
     }
   } else {
-    for (i=0; i<10; i++) {
+    for (i=0; i<5; i++) {
       digitalWrite(LED, HIGH);
       delay(500);
       digitalWrite(LED, LOW);
