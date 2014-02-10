@@ -26,11 +26,13 @@ void setup(){                                 // Serial initialization
 }
  
 void loop() {
-    PWM_Mode();
-    delay(20);
+    Serial.print("Distance = ");
+    Serial.print(PWM_Mode_getDis());
+    Serial.println("cm");
+    delay(500);
 }                      //PWM mode setup function
  
-void PWM_Mode_Setup() { 
+void PWM_Mode_Setup() {
   pinMode(URTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
   digitalWrite(URTRIG,HIGH);                  // Set to HIGH
   
@@ -41,19 +43,21 @@ void PWM_Mode_Setup() {
    } 
 }
  
-void PWM_Mode() {                              // a low pull on pin COMP/TRIG  triggering a sensor reading
+int PWM_Mode_getDis() {                              // a low pull on pin COMP/TRIG  triggering a sensor reading
     digitalWrite(URTRIG, LOW);
     digitalWrite(URTRIG, HIGH);               // reading Pin PWM will output pulses
      
-    unsigned long DistanceMeasured = pulseIn(URPWM, LOW);
+    // unsigned long DistanceMeasured = pulseIn(URPWM, LOW);
      
-    if (DistanceMeasured == 50000) {              // the reading is invalid.
-      Serial.print("Invalid");    
-    } else {
-        Distance = DistanceMeasured / 50;           // every 50us low level stands for 1cm
-    }
-    Serial.print("Distance=");
-    Serial.print(Distance);
-    Serial.println("cm");
-    delay(500);
+    // if (DistanceMeasured == 50000) {              // the reading is invalid.
+    //   Serial.print("Invalid");    
+    // } else {
+    //     Distance = DistanceMeasured / 50;           // every 50us low level stands for 1cm
+    // }
+    // Serial.print("Distance=");
+    // Serial.print(Distance);
+    // Serial.println("cm");
+    // delay(500);
+
+    return pulseIn(URPWM, LOW) / 50;
 }
