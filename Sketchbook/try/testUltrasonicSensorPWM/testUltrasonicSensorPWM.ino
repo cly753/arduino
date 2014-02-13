@@ -14,14 +14,15 @@
 // #       Pin 4 PWM (URM V3.2) -> Pin 3 (Arduino)
 // #       Pin 6 COMP/TRIG (URM V3.2) -> Pin 5 (Arduino)
 // #
+
 int URPWM = 3; // PWM Output 0－25000US，Every 50US represent 1cm
 int URTRIG=5; // PWM trigger pin
  
 unsigned int Distance=0;
 uint8_t EnPwmCmd[4]={0x44,0x02,0xbb,0x01};    // distance measure command
  
-void setup(){                                 // Serial initialization
-  Serial.begin(9600);                         // Sets the baud rate to 9600
+void setup() {
+  Serial.begin(9600);
   PWM_Mode_Setup();
 }
  
@@ -40,7 +41,7 @@ void PWM_Mode_Setup() {
   
   for(int i=0;i<4;i++){
       Serial.write(EnPwmCmd[i]);
-   } 
+  } 
 }
  
 int PWM_Mode_getDis() {                              // a low pull on pin COMP/TRIG  triggering a sensor reading

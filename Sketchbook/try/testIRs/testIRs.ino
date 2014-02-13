@@ -10,37 +10,47 @@ float getDis21() {
     return 12343.85 * pow(analogRead(A0),-1.15);
 }
 
+float getDis21x() {
+    return 6787 / (analogRead(A0) - 3) - 4;
+}
+
 float getDis02() {
     return 30431 * pow(analogRead(A1), -1.169);
 }
 
-float getDisus() {
-    digitalWrite(trigger, LOW);
-    digitalWrite(trigger, HIGH);
+// float getDisus() {
+//     digitalWrite(trigger, LOW);
+//     digitalWrite(trigger, HIGH);
 
-    unsigned long width = pulseIn(urpwm, LOW);
+//     unsigned long width = pulseIn(urpwm, LOW);
 
-    return width / 50;
-}
+//     return width / 50;
+// }
 
 void setup() {
     Serial.begin(9600);
 
-    for(int i=0;i<4;i++)
-      Serial.write(EnPwmCmd[i]);
-    pinMode(trigger, OUTPUT);
-    digitalWrite(trigger, HIGH);
+    // for(int i=0;i<4;i++)
+    //   Serial.write(EnPwmCmd[i]);
+    // pinMode(trigger, OUTPUT);
+    // digitalWrite(trigger, HIGH);
 }
 
 void loop() {
-    Serial.print("ir02: ");
-    Serial.print(getDis02());
-    Serial.print("cm\nir21: ");
+    // Serial.print("ir02 : ");
+    // Serial.print(getDis02());
+    // Serial.println("cm");
+
+    Serial.print("\nir21 : ");
     Serial.print(getDis21());
-    Serial.print("cm\n");
-    Serial.print("us: ");
-    Serial.print(getDisus());
-    Serial.print("cm\n\n");
+    Serial.println("cm");
+    Serial.print("ir21x: ");
+    Serial.print(getDis21x());
+    Serial.println("cm");
+
+    // Serial.print("us   : ");
+    // Serial.print(getDisus());
+    // Serial.println("cm\n");
 
     delay(500);
 }
