@@ -9,7 +9,7 @@ HMC5883L compass;
 MagnetometerScaled scaled;
 
 double input, output, target;
-PID pid(&input, &output, &target, 2, 0, 1, DIRECT);
+PID pid(&input, &output, &target, 30, 19, 0, DIRECT);
 int spe;
 
 int URPWM = 3; // PWM Output 0－25000US，Every 50US represent 1cm
@@ -17,25 +17,25 @@ int URTRIG=5; // PWM trigger pin
 int smooth[3] = {0, 0, 0};
 int smoothSum = 0;
 
-// void setCompass() {
-//   int error = 0;
-//   compass = HMC5883L();
-//   error = compass.SetScale(1.3);
-//   if (error != 0)
-//     Serial.println(compass.GetErrorText(error));
-//   error = compass.SetMeasurementMode(Measurement_Continuous);
-//   if (error != 0)
-//     Serial.println(compass.GetErrorText(error));
-// }
+void setCompass() {
+  int error = 0;
+  compass = HMC5883L();
+  error = compass.SetScale(1.3);
+  if (error != 0)
+    Serial.println(compass.GetErrorText(error));
+  error = compass.SetMeasurementMode(Measurement_Continuous);
+  if (error != 0)
+    Serial.println(compass.GetErrorText(error));
+}
 
-// float getHeading() {
-//   scaled = compass.ReadScaledAxis();
-//   float heading = atan2(scaled.YAxis, scaled.XAxis);
-//   if (heading < 0)
-//     heading += 2 * PI;
+float getHeading() {
+  scaled = compass.ReadScaledAxis();
+  float heading = atan2(scaled.YAxis, scaled.XAxis);
+  if (heading < 0)
+    heading += 2 * PI;
 
-//   return heading * 180 / M_PI;
-// }
+  return heading * 180 / M_PI;
+}
 
 void PWM_Mode_Setup() {
   pinMode(URTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
@@ -65,7 +65,7 @@ float smoothOutput(float output) {
 
 void setPID() {
     pid.SetMode(AUTOMATIC);
-    pid.SetOutputLimits(-10, 10);
+    pid.SetOutputLimits(-100, 100);
 }
 
 void setup() {
@@ -89,9 +89,9 @@ void setup() {
     delay(2000);
 
     spe = 200;
-    md.setSpeeds(spe, spe);
+    md.setSpeeds(0, 0);
 
-    while (PWM_Mode_getDis() > 10) {
+    while (1 || PWM_Mode_getDis() > 1) {
         input = getHeading();
         Serial.print("\nheading: ");
         Serial.println(input);
@@ -101,7 +101,7 @@ void setup() {
         Serial.print("output: ");
         Serial.println(output);
 
-        md.setSpeeds(spe + (int)smoothOutput(output), spe - (int)smoothOutput(output));
+        md.setSpeeds(- (int)output, (int)output);
 
         delay(200);
     }

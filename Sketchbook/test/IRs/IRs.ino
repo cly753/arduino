@@ -7,15 +7,15 @@ int trigger = 3;
 int urpwm = 5;
 
 float getDis21() {
-    return 12343.85 * pow(analogRead(A0),-1.15);
+    return 12343.85 * pow(analogRead(19),-1.15);
 }
 
 float getDis21x() {
-    return 6787 / (analogRead(A0) - 3) - 4;
+    return 6787 / (analogRead(19) - 3) - 4;
 }
 
 float getDis02() {
-    return 30431 * pow(analogRead(A1), -1.169);
+    return 30431 * pow(analogRead(18), -1.169);
 }
 
 // float getDisus() {
@@ -44,9 +44,9 @@ void loop() {
     Serial.print("\nir21 : ");
     Serial.print(getDis21());
     Serial.println("cm");
-    Serial.print("ir21x: ");
-    Serial.print(getDis21x());
-    Serial.println("cm");
+    // Serial.print("ir21x: ");
+    // Serial.print(getDis21x());
+    // Serial.println("cm");
 
     // Serial.print("us   : ");
     // Serial.print(getDisus());
