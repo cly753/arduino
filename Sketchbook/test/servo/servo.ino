@@ -1,39 +1,26 @@
-// Sweep
-// by BARRAGAN <http://barraganstudio.com> 
-// This example code is in the public domain.
-
-
 #include <Servo.h> 
  
-Servo myservo;  // create servo object to control a servo 
-                // a maximum of eight servo objects can be created 
+Servo myservo;
+int pos = 0;
+int servoPin = 13;
  
-int pos = 0;    // variable to store the servo position 
- 
-void setup() 
-{ 
-  myservo.attach(7, 600, 2200);  // attaches the servo on pin 9 to the servo object 
-} 
- 
- 
-void loop() 
-{ 
-  for(pos = 0; pos < 180; pos += 1)  // goes from 0 degrees to 180 degrees 
-  {                                  // in steps of 1 degree 
-    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
-    delay(15);                       // waits 15ms for the servo to reach the position 
-  } 
-  for(pos = 180; pos>=1; pos-=1)     // goes from 180 degrees to 0 degrees 
-  {                                
-    myservo.write(pos);              // tell servo to go to position in variable 'pos' 
-    delay(15);                       // waits 15ms for the servo to reach the position 
-  } 
+void setup()  { 
+  myservo.attach(servoPin, 600, 2200);
 } 
 
+void loop()  { 
+  for(pos = 0; pos < 180; pos += 1) {
+    myservo.write(pos);
+    delay(15);
+  } 
+  for(pos = 180; pos>=1; pos-=1) {                                
+    myservo.write(pos);           
+    delay(15);              
+  } 
+}
 
 //// test writeMicroseconds
-//void setup() 
-//{ 
+//void setup() { 
 //  myservo.attach(7);
 //  myservo.writeMicroseconds(2200);  // set servo to mid-point
 //} 

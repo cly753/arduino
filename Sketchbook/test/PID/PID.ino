@@ -17,6 +17,49 @@ int URTRIG=5; // PWM trigger pin
 int smooth[3] = {0, 0, 0};
 int smoothSum = 0;
 
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+
+  setCompass();
+  setPID();
+  md.init();
+
+  delay(100);
+
+  target = getHeading();
+  input = getHeading();
+
+  Serial.print("input: ");
+  Serial.println(input);
+  Serial.print("target: ");
+  Serial.println(target);
+
+  delay(1000);
+
+  spe = 200;
+  md.setSpeeds(0, 0);
+
+  while (1 || PWM_Mode_getDis() > 1) {
+    input = getHeading();
+    Serial.print("\nheading: ");
+    Serial.println(input);
+
+    pid.Compute();
+
+    Serial.print("output: ");
+    Serial.println(output);
+
+    md.setSpeeds(- (int)output, (int)output);
+
+    delay(200);
+  }
+
+  md.setBrakes(400, 400);
+}
+
+void loop() {}
+
 void setCompass() {
   int error = 0;
   compass = HMC5883L();
@@ -27,7 +70,6 @@ void setCompass() {
   if (error != 0)
     Serial.println(compass.GetErrorText(error));
 }
-
 float getHeading() {
   scaled = compass.ReadScaledAxis();
   float heading = atan2(scaled.YAxis, scaled.XAxis);
@@ -36,7 +78,6 @@ float getHeading() {
 
   return heading * 180 / M_PI;
 }
-
 void PWM_Mode_Setup() {
   pinMode(URTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
   digitalWrite(URTRIG,HIGH);                  // Set to HIGH
@@ -47,14 +88,12 @@ void PWM_Mode_Setup() {
   for(int i=0;i<4;i++)
       Serial.write(EnPwmCmd[i]);
 }
-
 int PWM_Mode_getDis() {                              // a low pull on pin COMP/TRIG  triggering a sensor reading
     digitalWrite(URTRIG, LOW);
     digitalWrite(URTRIG, HIGH);               // reading Pin PWM will output pulses
      
     return pulseIn(URPWM, LOW) / 50;
 }
-
 float smoothOutput(float output) {
   smoothSum += output;
   smoothSum -= smooth[2];
@@ -62,54 +101,8 @@ float smoothOutput(float output) {
     smooth[i+1] = smooth[i];
   return smoothSum / 3.0;
 }
-
 void setPID() {
-    pid.SetMode(AUTOMATIC);
-    pid.SetOutputLimits(-100, 100);
+  pid.SetMode(AUTOMATIC);
+  pid.SetOutputLimits(-100, 100);
+  pid.SetSampleTime(200); // ?
 }
-
-void setup() {
-    Serial.begin(9600);
-    Wire.begin();
-
-    setCompass();
-    setPID();
-    md.init();
-
-    delay(100);
-
-    target = getHeading();
-    input = getHeading();
-
-    Serial.print("input: ");
-    Serial.println(input);
-    Serial.print("target: ");
-    Serial.println(target);
-
-    delay(2000);
-
-    spe = 200;
-    md.setSpeeds(0, 0);
-
-    while (1 || PWM_Mode_getDis() > 1) {
-        input = getHeading();
-        Serial.print("\nheading: ");
-        Serial.println(input);
-
-        pid.Compute();
-
-        Serial.print("output: ");
-        Serial.println(output);
-
-        md.setSpeeds(- (int)output, (int)output);
-
-        delay(200);
-    }
-
-    md.setBrakes(400, 400);
-}
-
-void loop() {
-
-}
-

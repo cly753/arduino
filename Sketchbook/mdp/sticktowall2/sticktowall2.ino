@@ -1,3 +1,6 @@
+// add PID
+// add Compass (goAhead, rotateLeft)
+
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 #include <HMC5883L.h>
@@ -9,6 +12,12 @@
 
 DualVNH5019MotorShield md;
 HMC5883L compass;
+
+double input, output, target;
+float inputWindow[3] = {0, 0, 0};
+float inputSum = 0;
+int inputMarker = 0;
+PID pid(&input, &output, &target, 10, 3, 0, DIRECT);
 
 float leftHeadWindow[3] = {0, 0, 0};
 float leftTailWindow[3] = {0, 0, 0};
@@ -22,6 +31,9 @@ const int urTRIG=5; // PWM trigger pin
 const int leftHeadPin = 17; // A5
 const int leftTailPin = 16; // A4
 int front;
+int frontLeft;
+int frontRight;
+float left;
 float leftHead;
 float leftTail;
 int enRight;
@@ -34,9 +46,14 @@ void setCompass() {
   compass = HMC5883L();
   compass.SetMeasurementMode(Measurement_Continuous);
 }
+void setPID() {
+  pid.SetMode(AUTOMATIC);
+  pid.SetOutputLimits(-100, 100);
+  pid.SetSampleTime(200); // ???
+}
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
-  float heading = atan2(scaled.YAxis, scaled.XAxis + 120);
+  float heading = atan2(scaled.YAxis - 10, scaled.XAxis + 125);
   if (heading < 0)
     heading += 2 * PI;
   return heading * 180.0 / M_PI;
@@ -55,60 +72,70 @@ int PWM_Mode_getDis() { // a low pull on pin COMP/TRIG  triggering a sensor read
     return pulseIn(urPWM, LOW) / 50;
 }
 
-void rotateLeft(int degree) { // require md, encoder left, encoder righ, 
+void rotateLeft2(int degree) {
   float neg = 1.0;
   if (degree < 0) neg = -1.0;
-  int need = degree / 360.0 * one360 * neg;
+  float now = getHeading();
+  int des = ((int)now - degree) % 360;
 
-  // int now = getHeading();
-  // target = now + degree;
-  // int pidTime = 10;
-  // if (target > 360)
-  //   target -= 360;
-  // if (target < 0)
-  //   target += 360;
-
-  md.setSpeeds(-150 * neg, 150 * neg);
-
-  while (need--) {
-    while (digitalRead(enLeft));
-    while (!digitalRead(enLeft));
+  md.setSpeeds(-200 * neg, 200 * neg);
+  while (des - now > 2 || des - now < -2) {
+    now = getHeading();
   }
-  md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
-  delay(50);
-
   md.setBrakes(400, 400);
-
-  // while (pidTime--) {
-  //   input = getHeading();
-  //   pid.Compute();
-  //   md.setSpeeds(- (int)output, (int)output);
-
-  //   Serial.print("\nheading: ");
-  //   Serial.println(input);
-  //   Serial.print("output: ");
-  //   Serial.println(output);
-  //   delay(100);
-  // }
 }
-void goAhead(float grid) {
+void goAhead2(float grid) {
+  // float st = getHeading();
+  // float now;
+  
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
+  int spe = 150 * neg;
 
-  md.setSpeeds(200 * neg, 200 * neg);
+  int a = need / 50;
+  int b = need % 50; // need = a * 100 + b
 
-  while (need--) {
+  int integrate = 0;
+  int error;
+  
+  float target2 = getHeading();
+  delay(200);
+  target = (getHeading() + target2) / 2.0;
+  delay(200);
+
+  md.setSpeeds(spe, spe);
+
+  for (int i = 0; i < a; i++) {
+    need = 50;
+    while (need--) {
+      while (digitalRead(enLeft));
+      while (!digitalRead(enLeft));
+    }
+
+    // now = getHeading();
+    // integrate += now - st;
+    // error = 2 * (now - st) + 1 * integrate;
+    
+    // input = getHeading();
+    input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
+    pid.Compute();
+    output *= neg;
+    md.setSpeeds(spe + output, spe - output);
+  }
+
+  while (b--) {
     while (digitalRead(enLeft));
     while (!digitalRead(enLeft));
   }
 
+  // rotateLeft2(getHeading() - st);
   md.setBrakes(400, 400);
 }
 void shiftLeft(float grid) {
-    rotateLeft(90);
-    goAhead(grid);
-    rotateLeft(-90);
+    rotateLeft2(90);
+    goAhead2(grid);
+    rotateLeft2(-90);
 }
 int selfAdjust(float leftHead, float leftTail, int S, int M, int L) {
   if (L < leftHead && L < leftTail) {
@@ -122,10 +149,10 @@ int selfAdjust(float leftHead, float leftTail, int S, int M, int L) {
     shiftLeft(-0.1);
   } else if (leftHead < M && M < leftTail) {
     Serial.println("turn right");
-    rotateLeft(-5);
+    rotateLeft2(-5);
   } else if (M < leftHead && leftTail < M) {
     Serial.println("turn left");
-    rotateLeft(5);
+    rotateLeft2(5);
   } else {
     return 1;
   }
@@ -150,8 +177,7 @@ float smoothOutput(float output, float window[], float smoothSum, int marker) {
 void go() {
   while (1) {
     front = PWM_Mode_getDis();
-//    leftHead = getDis21(leftHeadPin) - 8;
-//    leftTail = getDis21(leftTailPin) - 8;
+
     leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
     leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
 
@@ -164,8 +190,6 @@ void go() {
 
     if (leftHead < 10 && leftTail < 10) {
       while (1) {
-//        leftHead = getDis21(leftHeadPin) - 8;
-//        leftTail = getDis21(leftTailPin) - 8;
         leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
         leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
         Serial.print("front..............................: ");
@@ -186,25 +210,38 @@ void go() {
       }
     }
 
-    if (leftTail > 10) {
-      Serial.println("here1");
-      if (leftHead > 10) {
-        Serial.println("here2");
-        rotateLeft(90);
-        goAhead(1);
-      } else if (front > 10) {
-        Serial.println("here3");
-        goAhead(1);
-      } else {
-        Serial.println("here4");
-        rotateLeft(-90);
-      }
+    left = 15;
+    if (leftHead < 10 || leftTail < 10)
+      left = 5;
+
+    // if (leftTail > 10) {
+    //   Serial.println("here1");
+    //   if (leftHead > 10) {
+    //     Serial.println("here2");
+    //     rotateLeft2(90);
+    //     goAhead2(1);
+    //   } else if (front > 10) {
+    //     Serial.println("here3");
+    //     goAhead2(1);
+    //   } else {
+    //     Serial.println("here4");
+    //     rotateLeft2(-90);
+    //   }
+    // } else if (front > 10) {
+    //   Serial.println("here5");
+    //   goAhead2(1);
+    // } else {
+    //   Serial.println("here6");
+    //   rotateLeft2(-90);
+    // }
+
+    if (left > 10) {
+      rotateLeft2(90);
+      goAhead2(1);
     } else if (front > 10) {
-      Serial.println("here5");
-      goAhead(1);
+      goAhead2(1);
     } else {
-      Serial.println("here6");
-      rotateLeft(-90);
+      rotateLeft2(-90);
     }
 
     Serial.println("here");
@@ -219,9 +256,11 @@ void setup() {
     PWM_Mode_Setup();
     setCompass();
     md.init();
+    setPID();
 
     delay(1000);
-    go();
+    rotateLeft2(90);
+    // go();
 }
 
 void loop() {}
