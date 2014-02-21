@@ -40,6 +40,7 @@ int enRight;
 int enLeft = 11;
 
 float getDis21(int pin) {
+  
   return 12343.85 * pow(analogRead(pin),-1.15);
 }
 void setCompass() {
@@ -237,8 +238,10 @@ void go() {
 
     if (left > 10) {
       rotateLeft2(90);
+      pid.Reset(); // <---
       goAhead2(1);
     } else if (front > 10) {
+      pid.Reset(); // <---
       goAhead2(1);
     } else {
       rotateLeft2(-90);

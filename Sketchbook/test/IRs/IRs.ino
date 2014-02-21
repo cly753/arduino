@@ -7,7 +7,7 @@ int trigger = 3;
 int urpwm = 5;
 
 float getDis21() {
-    return 12343.85 * pow(analogRead(19),-1.15);
+    return 12343.85 * pow(analogRead(16),-1.15);
 }
 
 float getDis21x() {

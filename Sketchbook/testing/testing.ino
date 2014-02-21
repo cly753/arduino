@@ -4,35 +4,42 @@
 #include <PID_v1.h>
 #include <Servo.h>
 
-Servo myservo;
-int servoPin = 13;
+Servo sv;
+DualVNH5019MotorShield md;
 
 const int urPWM = 3;
 const int urTRIG = 5;
 
 void servoSensor() {
     int front;
-    myservo.write(60);
-    delay(100);
+    sv.write(60);
+    delay(150);
     front = PWM_Mode_getDis();
-    Serial.print("60`: ");
+    Serial.print("\n60`: ");
     Serial.println(front);
 
-    myservo.write(120);
-    delay(100);
+    sv.write(120);
+    delay(150);
     front = PWM_Mode_getDis();
-    Serial.print("60`: ");
+    Serial.print("120`: ");
     Serial.println(front);
 }
 
 void setup() {
-    PWM_Mode_Setup();
-    myservo.attach(13, 600, 2200);
-
-    servoSensor();
+  Serial.begin(9600);
+  PWM_Mode_Setup();
+  md.init();
+  sv.attach(13, 600, 2200);
+  
+  Serial.println("start...");
+  
+  md.setSpeeds(200, 200);
 }
 
-void loop() {}
+void loop() {
+  servoSensor();
+  delay(2000);
+}
 
 void PWM_Mode_Setup() {
   pinMode(urTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG

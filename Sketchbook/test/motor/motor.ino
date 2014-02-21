@@ -45,27 +45,6 @@ void testPulse() {
   Serial.println("\nstop.");
 }
 
-void testCompass() {
-  int need = rd * 5;
-  int st;
-  int error;
-
-  delay(500);
-  st = getHeading();
-
-  md.setSpeeds(200, 200);
-
-  while (need--) {
-    while (digitalRead(enLeft));
-    while (!digitalRead(enLeft));
-  }
-
-  error = getHeading() - st;
-  rotateLeft(error);
-
-  md.setBrakes(400, 400);
-}
-
 void testTurn() {
   int need = one360 * 10;
   int need2 = one360;
@@ -100,7 +79,6 @@ void testTurn2() {
     delay(1000);
   }
 }
-
 
 void testSelfAdjust() {
   float leftHead;
@@ -167,15 +145,7 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
   float neg = 1.0;
   if (degree < 0) neg = -1.0;
   int need = degree / 360.0 * one360 * neg;
-
-  // int now = getHeading();
-  // target = now + degree;
-  // int pidTime = 10;
-  // if (target > 360)
-  //   target -= 360;
-  // if (target < 0)
-  //   target += 360;
-
+  
   md.setSpeeds(150 * neg, -150 * neg);
 
   while (need--) {
@@ -184,18 +154,6 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
   }
 
   md.setBrakes(400, 400);
-
-  // while (pidTime--) {
-  //   input = getHeading();
-  //   pid.Compute();
-  //   md.setSpeeds(- (int)output, (int)output);
-
-  //   Serial.print("\nheading: ");
-  //   Serial.println(input);
-  //   Serial.print("output: ");
-  //   Serial.println(output);
-  //   delay(100);
-  // }
 }
 void rotateLeft2(int degree) {
   float neg = 1.0;

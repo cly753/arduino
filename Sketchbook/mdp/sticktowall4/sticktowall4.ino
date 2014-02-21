@@ -1,10 +1,10 @@
-// normalized direction
+// add servo
 //
-
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 #include <HMC5883L.h>
 #include <PID_v1.h>
+#include <Servo.h>
 
 #define rd 562.0
 #define oneGrid 281.0
@@ -14,8 +14,7 @@ DualVNH5019MotorShield md;
 HMC5883L compass;
 double input, output, target;
 PID pid(&input, &output, &target, 0, 0, 0, DIRECT);
-
-int xy[2] = {0, 0};
+Servo sv;
 
 float inputWindow[3] = {0, 0, 0};
 float inputSum = 0;
@@ -44,43 +43,48 @@ int Nnow;
 
 void go() {
   while (1) {
-    while (1) {
-      leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
-      leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
-//        Serial.print("front..............................: ");
-//        Serial.println(front);
-//        Serial.print("leftHead...........................: ");
-//        Serial.println(leftHead);
-//        Serial.print("leftTail...........................: ");
-//        Serial.println(leftTail);
-      
-      int re = selfAdjust(leftHead, leftTail, 4, 6, 15);
-      
-      if (re == 1) {
-//          Serial.println("done");
-        break;
-      }
-      delay(100);
-    }
-    
-    front = PWM_Mode_getDis();
+    // sv.write(25);
+    // delay(250);
     rotateLeft3(1);
-    frontRight = PWM_Mode_getDis() / 1.1;
+    frontRight = PWM_Mode_getDis();
+
     rotateLeft3(-1);
+    // sv.write(40);
+    // delay(250);
     frontLeft = PWM_Mode_getDis();
-//    Serial.print("left: ");
-//    Serial.println(frontLeft);
-//    Serial.print("right: ");
-//    Serial.println(frontRight);
+    Serial.print("right: ");
+    Serial.println(frontRight);
 
     leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
     leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
-//    Serial.print("front..............................: ");
-//    Serial.println(front);
-//    Serial.print("leftHead...........................: ");
-//    Serial.println(leftHead);
-//    Serial.print("leftTail...........................: ");
-//    Serial.println(leftTail);
+
+   // Serial.print("front..............................: ");
+   // Serial.println(front);
+   // Serial.print("leftHead...........................: ");
+   // Serial.println(leftHead);
+   // Serial.print("leftTail...........................: ");
+   // Serial.println(leftTail);
+
+    if (leftHead < 10 && leftTail < 10) {
+      while (1) {
+        leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
+        leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
+       // Serial.print("front..............................: ");
+       // Serial.println(front);
+       // Serial.print("leftHead...........................: ");
+       // Serial.println(leftHead);
+       // Serial.print("leftTail...........................: ");
+       // Serial.println(leftTail);
+        
+        int re = selfAdjust(leftHead, leftTail, 4, 6, 10);
+        
+        if (re == 1) {
+          Serial.println("done");
+          break;
+        }
+        delay(100);
+      }
+    }
 
     left = 15;
     if (leftHead < 10 || leftTail < 10)
@@ -99,13 +103,9 @@ void go() {
       rotateLeft3(-2);
     }
 
-//    Serial.println("here");
+    Serial.println("here");
     delay(100);
-    if (xy[0] == 12 && xy[1] == 7)
-      break;
   }
-  
-  while(1) rotateLeft3(2);
 }
 
 void setup() {
@@ -116,18 +116,20 @@ void setup() {
     md.init();
     setPID();
     storeDirection();
+//    sv.attach(13);
+//
+//    delay(1000);
+    go();
+//    sv.write(145);
+//    delay(500);
+//    sv.write(25);
+//    delay(1000);
+//    sv.detach();
     delay(1000);
-    
-    // go();
     // md.setSpeeds(200, 200);
 }
 
-void loop() {
-//  goAhead3(10);
-//  rotateLeft3(2);
-//  rotateLeft3(2);
-//  goAhead3(10);
-}
+void loop() {}
 
 void storeDirection() {
   delay(100);
@@ -152,7 +154,7 @@ void setPID() {
 }
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
-  float heading = atan2(scaled.YAxis + 135, scaled.XAxis + 135);
+  float heading = atan2(scaled.YAxis + 70, scaled.XAxis + 140);
   if (heading < 0)
     heading += 2 * PI;
   return heading * 180.0 / M_PI;
@@ -167,7 +169,7 @@ void PWM_Mode_Setup() {
 }
 int PWM_Mode_getDis() { // a low pull on pin COMP/TRIG  triggering a sensor reading
     digitalWrite(urTRIG, LOW);
-    digitalWrite(urTRIG, HIGH);               // reading Pin PWM will output pulses
+    digitalWrite(urTRIG, HIGH);
     return pulseIn(urPWM, LOW) / 50;
 }
 
@@ -184,7 +186,7 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
   }
 
   md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
-  delay(50);
+  delay(75);
 
   md.setBrakes(400, 400);
 }
@@ -196,6 +198,9 @@ void rotateLeft3(int quarter) {
   int des = N[Nnow];
   
   md.setSpeeds(-150 * neg, 150 * neg);
+  while (des - now > 15 || des - now < -15)
+    now = getHeading();
+  md.setSpeeds(50 * neg, 50 * neg);
   while (des - now > 3 || des - now < -3)
     now = getHeading();
   md.setBrakes(400, 400);
@@ -204,18 +209,17 @@ void goAhead3(float grid) {
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
-  int spe = 200 * neg;
-  int leftCompensate = 10;
+  int spe = 150 * neg;
 
-  int a = need / 100;
-  int b = need % 100; // need = a * 100 + b
+  int a = need / 50;
+  int b = need % 50; // need = a * 50 + b
   
   target = N[Nnow];
 
-  md.setSpeeds(spe + leftCompensate, spe);
+  md.setSpeeds(spe, spe);
 
   for (int i = 0; i < a; i++) {
-    need = 100;
+    need = 50;
     while (need--) {
       while (digitalRead(enLeft));
       while (!digitalRead(enLeft));
@@ -224,7 +228,7 @@ void goAhead3(float grid) {
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
     pid.Compute();
     output *= neg;
-    md.setSpeeds(spe + leftCompensate + output, spe - output);
+    md.setSpeeds(spe + output, spe - output);
   }
 
   while (b--) {
@@ -232,11 +236,6 @@ void goAhead3(float grid) {
     while (!digitalRead(enLeft));
   }
   md.setBrakes(400, 400);
-  
-  if (Nnow == 0) xy[0]++;
-  if (Nnow == 2) xy[1]++;
-  if (Nnow == 4) xy[0]--;
-  if (Nnow == 6) xy[1]--;
 }
 void shiftLeft(float grid) {
   rotateLeft3(2);
@@ -245,24 +244,24 @@ void shiftLeft(float grid) {
 }
 int selfAdjust(float leftHead, float leftTail, int S, int M, int L) {
   if (L < leftHead && L < leftTail) {
-//    Serial.println("do nothing");
+    // Serial.println("do nothing");
     return 1; // reutn 1 if done
   } else if (M < leftHead && leftHead < L && M < leftTail && leftTail < L) {
-//    Serial.println("shift left");
+    // Serial.println("shift left");
     shiftLeft(0.1);
   } else if (leftHead < S && leftTail < S) {
-//    Serial.println("shift right");
+    // Serial.println("shift right");
     shiftLeft(-0.1);
   } else if (leftHead < M && M < leftTail) {
-//    Serial.println("turn right");
+    // Serial.println("turn right");
     rotateLeft(-5);
   } else if (M < leftHead && leftTail < M) {
-//    Serial.println("turn left");
+    // Serial.println("turn left");
     rotateLeft(5);
   } else {
     return 1;
   }
-    
+  
   return 0; // return 0 if not done
 }
 float smoothOutput(float output, float window[], float smoothSum, int marker) {

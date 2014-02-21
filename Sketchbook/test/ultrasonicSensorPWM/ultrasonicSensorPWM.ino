@@ -30,7 +30,7 @@ void loop() {
     Serial.print("Distance = ");
     Serial.print(PWM_Mode_getDis());
     Serial.println("cm");
-    delay(500);
+    delay(250);
 }                      //PWM mode setup function
  
 void PWM_Mode_Setup() {

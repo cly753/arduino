@@ -1,3 +1,12 @@
+1. pid
+
+2. measure one grid
+
+3. test ultrasonic sensor
+
+4. rotateLeft slow down
+
+
 #include <Wire.h>
 #include <HMC5883L.h>
 #include <DualVNH5019MotorShield.h>
@@ -9,8 +18,8 @@
 #define one360 1650.0 // hall stair
 #define one360 1633.0 // hall room floor
 #define one360 1450.0 // hall room floor 90`
-#define compassX 125
-#define compassY -10
+#define compassX 135
+#define compassY 135
 
 DualVNH5019MotorShield md; // motor1 is on the right // motor2 is on the left
 HMC5883L compass;
@@ -29,6 +38,7 @@ ________________________________________
 ________________________________________
 
 float getDis21(int pin) {
+  
   return 12343.85 * pow(analogRead(pin),-1.15);
 }
 
@@ -79,26 +89,21 @@ void goAhead(float grid) {
   md.setBrakes(400, 400);
 }
 void goAhead2(float grid) {
-  // float st = getHeading();
-  // float now;
-  
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
   int spe = 150 * neg;
 
   int a = need / 50;
-  int b = need % 50; // need = a * 100 + b
+  int b = need % 50; // need = a * 50 + b
 
-  // int integrate = 0;
-  // int error;
+  int integrate = 0;
+  int error;
   
   float target2 = getHeading();
   delay(200);
   target = (getHeading() + target2) / 2.0;
   delay(200);
-
-  // target = N[Nnow];
 
   md.setSpeeds(spe, spe);
 
@@ -109,11 +114,6 @@ void goAhead2(float grid) {
       while (!digitalRead(enLeft));
     }
 
-    // now = getHeading();
-    // integrate += now - st;
-    // error = 2 * (now - st) + 1 * integrate;
-    
-    // input = getHeading();
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
     pid.Compute();
     output *= neg;
@@ -129,19 +129,13 @@ void goAhead2(float grid) {
   md.setBrakes(400, 400);
 }
 void goAhead3(float grid) {
-  // float st = getHeading();
-  // float now;
-  
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
   int spe = 150 * neg;
 
   int a = need / 50;
-  int b = need % 50; // need = a * 100 + b
-
-  // int integrate = 0;
-  // int error;
+  int b = need % 50; // need = a * 50 + b
 
   target = getTargetDirection(0);
 
@@ -153,12 +147,7 @@ void goAhead3(float grid) {
       while (digitalRead(enLeft));
       while (!digitalRead(enLeft));
     }
-
-    // now = getHeading();
-    // integrate += now - st;
-    // error = 2 * (now - st) + 1 * integrate;
     
-    // input = getHeading();
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
     pid.Compute();
     output *= neg;
@@ -179,14 +168,6 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
   if (degree < 0) neg = -1.0;
   int need = degree / 360.0 * one360 * neg;
 
-  // int now = getHeading();
-  // target = now + degree;
-  // int pidTime = 10;
-  // if (target > 360)
-  //   target -= 360;
-  // if (target < 0)
-  //   target += 360;
-
   md.setSpeeds(-150 * neg, 150 * neg);
 
   while (need--) {
@@ -198,18 +179,6 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
   delay(50);
 
   md.setBrakes(400, 400);
-
-  // while (pidTime--) {
-  //   input = getHeading();
-  //   pid.Compute();
-  //   md.setSpeeds(- (int)output, (int)output);
-
-  //   Serial.print("\nheading: ");
-  //   Serial.println(input);
-  //   Serial.print("output: ");
-  //   Serial.println(output);
-  //   delay(100);
-  // }
 }
 void rotateLeft2(int degree) {
   float neg = 1.0;
@@ -225,10 +194,12 @@ void rotateLeft2(int degree) {
 void rotateLeft3(int quarter) {
   float neg = 1.0;
   if (quarter < 0) neg = -1.0;
-  int des = getTargetDirection(quarter);
-
-  md.setSpeeds(-100 * neg, 100 * neg);
-  while (des - now > 1 || des - now < -1)
+  Nnow = (Nnow - quarter + 8) % 8;
+  int des = N[Nnow];
+  
+  float now = getHeading();
+  md.setSpeeds(-150 * neg, 150 * neg);
+  while ((float)des - now > 3 || (float)des - now < -3)
     now = getHeading();
   md.setBrakes(400, 400);
 }
@@ -324,28 +295,14 @@ float smoothOutput(float output, float window[], float smoothSum, int marker) {
   }
   return smoothSum / 3.0;
 }
-
 void storeDirection() {
   delay(100);
   float now = getHeading();
   delay(100);
   now = (now + getHeading()) / 2.0;
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < 8; i++)
     N[i] = ((int)now + i * 45) % 360;
 }
-float getTargetDirection(int quarter) {
-  Nnow = (Nnow + quarter) % 8;
-  return N[Nnow + quarter];
-}
-// void adjustHeading() {
-//     int st = getHeading();
-//     int error;
-
-//     // go...go...
-
-//     error = getHeading() - st;
-//     rotateLeft(error);
-// }
 
 // compensate for brake
 

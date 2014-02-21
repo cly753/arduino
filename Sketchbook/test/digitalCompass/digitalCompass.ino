@@ -21,53 +21,12 @@ int enLeft = 11;
 float N[8]; // N NW W SW S ES E NE
 int Nnow;
 
-void testCompass() {
-  int need = rd * 5;
-  float st;
-  float error;
-
-  delay(500);
-  st = getHeading();
-
-  md.setSpeeds(200, 200);
-  while (need--) {
-    while (digitalRead(enLeft));
-    while (!digitalRead(enLeft));
-  }
-  md.setBrakes(400, 400);
-  delay(200);
-  
-  error = getHeading() - st;
-  rotateLeft(-1 * error);
-  Serial.print("1 * error: ");
-  Serial.println(-1 * error);
-}
-void testCompass2() {
-  while (1) {
-    // Serial.print(" heading: ");
-    // Serial.println(getHeading());
-    getHeading();
-    delay(250);
-  }
-}
-void testRotate90() {
-  int st = getHeading();
-  int des = (st + 90) % 360;
-  float now = st;
-
-  md.setSpeeds(200, -200);
-  while (des - now > 1.5 || des - now < -1.5)
-    now = getHeading();
-  // while (des > now)
-  //   now = getHeading();
-  md.setBrakes(400, 400);
-}
 void testNormalizeDirection() {
   for (int i = 1; i < 9; i *= 2) {
     rotateLeft3(i);
     delay(500);
     rotateLeft3(-1 * i);
-    delay(500);
+    delay(1000);
   }
 }
 
@@ -82,21 +41,31 @@ void setup() {
   pid.SetMode(AUTOMATIC);
   pid.SetOutputLimits(-100, 100);
 
-  // goAhead2(12);
-  // md.setSpeeds(400, 400);
-  testNormalizeDirection();
+  // md.setSpeeds(200, 200);
+  // testNormalizeDirection();
 }
 
-void loop() {}
+void loop() {
+  // getHeading();
+  // delay(50);
+  rotateLeft3(1);
+  delay(750);
+  rotateLeft3(-1);
+  delay(750);
+  rotateLeft3(2);
+  delay(750);
+  rotateLeft3(-2);
+  delay(750);
+}
 
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
   MagnetometerRaw raw = compass.ReadRawAxis();
-  Serial.print(raw.XAxis + 125);
+  Serial.print(raw.XAxis + 105);
   Serial.print(" ");
-  Serial.println(raw.YAxis - 10);
+  Serial.println(raw.YAxis + 150);
   
-  float heading = atan2(raw.YAxis - 10, raw.XAxis + 125);
+  float heading = atan2(raw.YAxis + 135, raw.XAxis + 135);
   if (heading < 0)
     heading += 2 * PI;
     
@@ -105,17 +74,21 @@ float getHeading() {
     
   return heading * 180 / M_PI;
 }
-void rotateLeft(int degree) {
+
+void rotateLeft(int degree) { // require md, encoder left, encoder righ, 
   float neg = 1.0;
   if (degree < 0) neg = -1.0;
   int need = degree / 360.0 * one360 * neg;
 
-  md.setSpeeds(150 * neg, -150 * neg);
+  md.setSpeeds(-150 * neg, 150 * neg);
 
   while (need--) {
     while (digitalRead(enLeft));
     while (!digitalRead(enLeft));
   }
+
+  md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
+  delay(50);
 
   md.setBrakes(400, 400);
 }
@@ -134,24 +107,22 @@ void rotateLeft3(int quarter) {
   float neg = 1.0;
   float now = N[Nnow];
   if (quarter < 0) neg = -1.0;
-  int des = getTargetDirection(quarter);
+  Nnow = (Nnow - quarter + 8) % 8;
+  int des = N[Nnow];
 
-  md.setSpeeds(-100 * neg, 100 * neg);
-  while (des - now > 1 || des - now < -1)
+  md.setSpeeds(-150 * neg, 150 * neg);
+  while (des - now > 2 || des - now < -2)
     now = getHeading();
   md.setBrakes(400, 400);
 }
 void goAhead2(float grid) {
-  // float st = getHeading();
-  // float now;
-
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
   int spe = 150 * neg;
 
   int a = need / 50;
-  int b = need % 50; // need = a * 100 + b
+  int b = need % 50; // need = a * 50 + b
 
   int integrate = 0;
   int error;
@@ -170,11 +141,6 @@ void goAhead2(float grid) {
       while (!digitalRead(enLeft));
     }
 
-    // now = getHeading();
-    // integrate += now - st;
-    // error = 2 * (now - st) + 1 * integrate;
-    
-    // input = getHeading();
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
     pid.Compute();
     output *= neg;
@@ -190,19 +156,13 @@ void goAhead2(float grid) {
   md.setBrakes(400, 400);
 }
 void goAhead3(float grid) {
-  // float st = getHeading();
-  // float now;
-  
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
   int spe = 150 * neg;
 
   int a = need / 50;
-  int b = need % 50; // need = a * 100 + b
-
-  // int integrate = 0;
-  // int error;
+  int b = need % 50; // need = a * 50 + b
 
   target = getTargetDirection(0);
 
@@ -215,11 +175,6 @@ void goAhead3(float grid) {
       while (!digitalRead(enLeft));
     }
 
-    // now = getHeading();
-    // integrate += now - st;
-    // error = 2 * (now - st) + 1 * integrate;
-    
-    // input = getHeading();
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
     pid.Compute();
     output *= neg;
@@ -238,13 +193,10 @@ void storeDirection() {
   delay(100);
   float now = getHeading();
   delay(100);
+  Nnow = 0;
   now = (now + getHeading()) / 2.0;
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < 8; i++)
     N[i] = ((int)now + i * 45) % 360;
-}
-float getTargetDirection(int quarter) {
-  Nnow = (Nnow + quarter) % 8;
-  return N[Nnow + quarter];
 }
 float smoothOutput(float output, float window[], float smoothSum, int marker) {
   if (output < smoothSum / 3.0 - 0.5 || output > smoothSum / 3.0 + 0.5) {
