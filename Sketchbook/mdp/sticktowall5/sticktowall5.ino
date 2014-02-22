@@ -25,9 +25,8 @@ HMC5883L compass;
 double input, output, target;
 PID pid(&input, &output, &target, 0, 0, 0, DIRECT);
 
-int currentPos[2] = {2, 2}; // {desX, desY}
-int obstacleX[X][Y + 1];  // [0 ~ X-1][0 ~ Y]
-int obstacleY[X + 1][Y];  // [0 ~ X][0 ~ Y-1]
+int curPos[2] = {2, 2};
+int wall[X+1][Y+1];
 
 float inputWindow[3] = {0, 0, 0};
 float inputSum = 0;
@@ -57,121 +56,97 @@ int Nnow;
 int getFront() {
   int dis;
   if (Nnow == 0) {
-    if (obstacleX[currentPos[0]-1][currentPos[1]+1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]-1][currentPos[1]+1] = 0;
+    if (wall[curPos[0]-1][curPos[1]+1] == 2) {
+      // sense left front
+      rotateLeft3(1);
+      if (PWM_Mode_getDis() < 14)
+        wall[curPos[0]-1][curPos[1]+1] = 1;
       else
-        obstacleX[currentPos[0]-1][currentPos[1]+1] = 1;
+        wall[curPos[0]-1][curPos[1]+1] = 0;
+      rotateLeft3(-1);
     }
 
-    if (obstacleX[currentPos[0]][currentPos[1]+1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]][currentPos[1]+1] = 0;
+    if (wall[curPos[0]][curPos[1]+1] == 2) {
+      // sense left front
+      if (PWM_Mode_getDis() < 10)
+        wall[curPos[0]][curPos[1]+1] = 1;
       else
-        obstacleX[currentPos[0]][currentPos[1]+1] = 1;
+        wall[curPos[0]][curPos[1]+1] = 0;
     }
 
-    if (obstacleX[currentPos[0]+1][currentPos[1]+1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]+1][currentPos[1]+1] = 0;
-      else
-        obstacleX[currentPos[0]+1][currentPos[1]+1] = 1;
-    }
-
-    if (obstacleX[currentPos[0]-1][currentPos[1]+1] + obstacleX[currentPos[0]][currentPos[1]+1] + obstacleX[currentPos[0]+1][currentPos[1]+1] != 0)
+    if (wall[curPos[0]-1][curPos[1]+1] + wall[curPos[0]][curPos[1]+1] != 0)
       return 1;
     return 0;
   }
 
   if (Nnow == 2) {
-    if (obstacleY[currentPos[0]+1][currentPos[1]+1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]+1][currentPos[1]+1] = 0;
+    if (wall[curPos[0]+1][curPos[1]] == 2) {
+      // sense left front
+      rotateLeft3(1);
+      if (PWM_Mode_getDis() < 14)
+        wall[curPos[0]+1][curPos[1]] = 1;
       else
-        obstacleY[currentPos[0]+1][currentPos[1]+1] = 1;
+        wall[curPos[0]+1][curPos[1]] = 0;
+      rotateLeft3(-1);
     }
 
-    if (obstacleY[currentPos[0]+1][currentPos[1]] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]+1][currentPos[1]] = 0;
+    if (wall[curPos[0]+1][curPos[1]-1] == 2) {
+      // sense left front
+      if (PWM_Mode_getDis() < 10)
+        wall[curPos[0]+1][curPos[1]-1] = 1;
       else
-        obstacleY[currentPos[0]+1][currentPos[1]] = 1;
+        wall[curPos[0]+1][curPos[1]-1] = 0;
     }
 
-    if (obstacleY[currentPos[0]+1][currentPos[1]-1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]+1][currentPos[1]-1] = 0;
-      else
-        obstacleY[currentPos[0]+1][currentPos[1]-1] = 1;
-    }
-
-    if (obstacleY[currentPos[0]+1][currentPos[1]-1] + obstacleY[currentPos[0]+1][currentPos[1]] + obstacleY[currentPos[0]+1][currentPos[1]+1] != 0)
+    if (wall[curPos[0]+1][curPos[1]] + wall[curPos[0]+1][curPos[1]-1] != 0)
       return 1;
     return 0;
   }
 
   if (Nnow == 4) {
-    if (obstacleX[currentPos[0]+1][currentPos[1]-2] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]+1][currentPos[1]-2] = 0;
+    if (wall[curPos[0]][curPos[1]-2] == 2) {
+      // sense left front
+      rotateLeft3(1);
+      if (PWM_Mode_getDis() < 14)
+        wall[curPos[0]][curPos[1]-2] = 1;
       else
-        obstacleX[currentPos[0]+1][currentPos[1]-2] = 1;
+        wall[curPos[0]][curPos[1]-2] = 0;
+      rotateLeft3(-1);
     }
 
-    if (obstacleX[currentPos[0]][currentPos[1]-2] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]][currentPos[1]-2] = 0;
+    if (wall[curPos[0]-1][curPos[1]-2] == 2) {
+      // sense left front
+      if (PWM_Mode_getDis() < 10)
+        wall[curPos[0]-1][curPos[1]-2] = 1;
       else
-        obstacleX[currentPos[0]][currentPos[1]-2] = 1;
+        wall[curPos[0]-1][curPos[1]-2] = 0;
     }
 
-    if (obstacleX[currentPos[0]-1][currentPos[1]-2] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleX[currentPos[0]-1][currentPos[1]-2] = 0;
-      else
-        obstacleX[currentPos[0]-1][currentPos[1]-2] = 1;
-    }
-
-    if (obstacleX[currentPos[0]-1][currentPos[1]-2] + obstacleX[currentPos[0]][currentPos[1]] + obstacleX[currentPos[0]+1][currentPos[1]-2] != 0)
+    if (wall[curPos[0]][curPos[1]-2] + wall[curPos[0]][curPos[1]-2] != 0)
       return 1;
     return 0;
   }
 
   if (Nnow == 6) {
-    if (obstacleY[currentPos[0]-2][currentPos[1]-1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]-2][currentPos[1]-1] = 0;
+    if (wall[curPos[0]-2][curPos[1]-1] == 2) {
+      // sense left front
+      rotateLeft3(1);
+      if (PWM_Mode_getDis() < 14)
+        wall[curPos[0]-2][curPos[1]-1] = 1;
       else
-        obstacleY[currentPos[0]-2][currentPos[1]-1] = 1;
+        wall[curPos[0]-2][curPos[1]-1] = 0;
+      rotateLeft3(-1);
     }
 
-    if (obstacleY[currentPos[0]-2][currentPos[1]] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]-2][currentPos[1]] = 0;
+    if (wall[curPos[0]-2][curPos[1]] == 2) {
+      // sense left front
+      if (PWM_Mode_getDis() < 10)
+        wall[curPos[0]-2][curPos[1]] = 1;
       else
-        obstacleY[currentPos[0]-2][currentPos[1]] = 1;
+        wall[curPos[0]-2][curPos[1]] = 0;
     }
 
-    if (obstacleY[currentPos[0]-2][currentPos[1]+1] == 2) {
-      dis = PWM_Mode_getDis();
-      if (dis > 10)
-        obstacleY[currentPos[0]-2][currentPos[1]+1] = 0;
-      else
-        obstacleY[currentPos[0]-2][currentPos[1]+1] = 1;
-    }
-
-    if (obstacleY[currentPos[0]-2][currentPos[1]-1] + obstacleY[currentPos[0]-2][currentPos[1]] + obstacleY[currentPos[0]-2][currentPos[1]+1] != 0)
+    if (wall[curPos[0]-2][curPos[1]-1] + wall[curPos[0]-2][curPos[1]] != 0)
       return 1;
     return 0;
   }
@@ -179,58 +154,98 @@ int getFront() {
 
 int getLeft() {
   int dis;
-  if (Nnow == 0) {
-    if (obstacleY[currentPos[0]-2][currentPos[1]+1] == 2) {
-      dis = getDis21(leftHeadPin);
-      if (dis > 10)
-        obstacleY[currentPos[0]-2][currentPos[1]+1] = 0;
-      else 
-        obstacleY[currentPos[0]-2][currentPos[1]+1] = 1;
-    }
-      
-    if (obstacleY[currentPos[0]-2][currentPos[1]-1] + obstacleY[currentPos[0]-2][currentPos[1]] + obstacleY[currentPos[0]-2][currentPos[1]+1] != 0)
-      return 1;
-    return 0;
-  }
-
   if (Nnow == 2) {
-    if (obstacleX[currentPos[0]+1][currentPos[1]+1] == 2) {
-      dis = getDis21(leftHeadPin);
-      if (dis > 10)
-        obstacleX[currentPos[0]+1][currentPos[1]+1] = 0;
-      else 
-        obstacleX[currentPos[0]+1][currentPos[1]+1] = 1;
+    // if (wall[curPos[0]-1][curPos[1]+1] == 2) {
+    //   // sense left front
+    //   rotateLeft3(1);
+    //   if (PWM_Mode_getDis() < 14)
+    //     wall[curPos[0]-1][curPos[1]+1] = 1;
+    //   else
+    //     wall[curPos[0]-1][curPos[1]+1] = 0;
+    //   rotateLeft3(-1);
+    // }
+
+    if (wall[curPos[0]][curPos[1]+1] == 2) {
+      // sense left front
+      if (getDis21() < 10)
+        wall[curPos[0]][curPos[1]+1] = 1;
+      else
+        wall[curPos[0]][curPos[1]+1] = 0;
     }
 
-    if (obstacleX[currentPos[0]-1][currentPos[1]+1] + obstacleY[currentPos[0]][currentPos[1]+1] + obstacleY[currentPos[0]+1][currentPos[1]+1] != 0)
+    if (wall[curPos[0]-1][curPos[1]+1] + wall[curPos[0]][curPos[1]+1] != 0)
       return 1;
     return 0;
   }
 
   if (Nnow == 4) {
-    if (obstacleY[currentPos[0]+1][currentPos[1]-1] == 2) {
-      dis = getDis21(leftHeadPin);
-      if (dis > 10)
-        obstacleY[currentPos[0]+1][currentPos[1]-1] = 0;
-      else 
-        obstacleY[currentPos[0]+1][currentPos[1]-1] = 1;
+    // if (wall[curPos[0]+1][curPos[1]] == 2) {
+    //   // sense left front
+    //   rotateLeft3(1);
+    //   if (PWM_Mode_getDis() < 14)
+    //     wall[curPos[0]+1][curPos[1]] = 1;
+    //   else
+    //     wall[curPos[0]+1][curPos[1]] = 0;
+    //   rotateLeft3(-1);
+    // }
+
+    if (wall[curPos[0]+1][curPos[1]-1] == 2) {
+      // sense left front
+      if (getDis21() < 10)
+        wall[curPos[0]+1][curPos[1]-1] = 1;
+      else
+        wall[curPos[0]+1][curPos[1]-1] = 0;
     }
 
-    if (obstacleY[currentPos[0]+1][currentPos[1]+1] + obstacleY[currentPos[0]+1][currentPos[1]] + obstacleY[currentPos[0]+1][currentPos[1]-1] != 0)
+    if (wall[curPos[0]+1][curPos[1]] + wall[curPos[0]+1][curPos[1]-1] != 0)
       return 1;
     return 0;
   }
 
   if (Nnow == 6) {
-    if (obstacleX[currentPos[0]-1][currentPos[1]-2] == 2) {
-      dis = getDis21(leftHeadPin);
-      if (dis > 10)
-        obstacleX[currentPos[0]-1][currentPos[1]-2] = 0;
-      else 
-        obstacleX[currentPos[0]-1][currentPos[1]-2] = 1;
+    // if (wall[curPos[0]][curPos[1]-2] == 2) {
+    //   // sense left front
+    //   rotateLeft3(1);
+    //   if (PWM_Mode_getDis() < 14)
+    //     wall[curPos[0]][curPos[1]-2] = 1;
+    //   else
+    //     wall[curPos[0]][curPos[1]-2] = 0;
+    //   rotateLeft3(-1);
+    // }
+
+    if (wall[curPos[0]-1][curPos[1]-2] == 2) {
+      // sense left front
+      if (getDis21() < 10)
+        wall[curPos[0]-1][curPos[1]-2] = 1;
+      else
+        wall[curPos[0]-1][curPos[1]-2] = 0;
     }
 
-    if (obstacleX[currentPos[0]+1][currentPos[1]-2] + obstacleY[currentPos[0]][currentPos[1]-2] + obstacleY[currentPos[0]-1][currentPos[1]-2] != 0)
+    if (wall[curPos[0]][curPos[1]-2] + wall[curPos[0]][curPos[1]-2] != 0)
+      return 1;
+    return 0;
+  }
+
+  if (Nnow == 0) {
+    // if (wall[curPos[0]-2][curPos[1]-1] == 2) {
+    //   // sense left front
+    //   rotateLeft3(1);
+    //   if (PWM_Mode_getDis() < 14)
+    //     wall[curPos[0]-2][curPos[1]-1] = 1;
+    //   else
+    //     wall[curPos[0]-2][curPos[1]-1] = 0;
+    //   rotateLeft3(-1);
+    // }
+
+    if (wall[curPos[0]-2][curPos[1]] == 2) {
+      // sense left front
+      if (PWM_Mode_getDis() < 10)
+        wall[curPos[0]-2][curPos[1]] = 1;
+      else
+        wall[curPos[0]-2][curPos[1]] = 0;
+    }
+
+    if (wall[curPos[0]-2][curPos[1]-1] + wall[curPos[0]-2][curPos[1]] != 0)
       return 1;
     return 0;
   }
@@ -256,8 +271,6 @@ void go() {
       }
       delay(100);
     }
-
-    
     
     // front = PWM_Mode_getDis();
     // rotateLeft3(1);
@@ -297,9 +310,8 @@ void go() {
       rotateLeft3(-2);
     }
 
-    // Serial.println("here");
     delay(100);
-    if (currentPos[0] == X && currentPos[1] == Y)
+    if (curPos[0] == X - 1 && curPos[1] == Y - 1)
       break;
   }
   
@@ -328,20 +340,23 @@ void loop() {
  // goAhead3(10);
 }
 
-void mazeInit() {
-  for (int i = 0; i < X; i++)
-    for (int j = 1; j < Y; j++)
-      obstacleX[i][j] = 2;
-  for (int i = 1; i < X; i++)
-    for (int j = 0; j < Y; j++)
-      obstacleY[i][j] = 2;
-  for (int i = 0; i < X; i++) {
-    obstacleX[i][0] = 1;
-    obstacleX[i][Y] = 1;
+void mazeInit() { // 2: unknown, 0: free, 1: wall
+  for (int i = 1; i < X; i++) {
+    for (int j = 1; j < y; j++) {
+      wall[i][j] = 2;
+      wall[i][j] = 2;      
+    }
+
   }
-  for (int j = 0; j < Y; j++) {
-    obstacleY[0][j] = 1;
-    obstacleY[X][j] = 1;
+
+  for (int i = 0; i < X + 1; i++) {
+    wall[i][0] = 1;
+    wall[i][Y] = 1;
+  }
+
+  for (int j = 0; i < X + 1; i++) {
+    wall[0][j] = 1;
+    wall[X][j] = 1;
   }
 }
 void storeDirection() {
