@@ -75,11 +75,10 @@ void go() {
     // if (curPos[0] == X - 1 && curPos[1] == Y - 1)
     //   break;
 
-    Serial.print("leftEmpty: ");
-    Serial.println(leftEmpty);
-
-    while (!Serial.available());
-    Serial.read();
+    // Serial.print("leftEmpty: ");
+    // Serial.println(leftEmpty);
+    // while (!Serial.available());
+    // Serial.read();
 
     disL = getDis21(leftHeadPin) - 8;
 
@@ -91,7 +90,7 @@ void go() {
 
     if (leftEmpty == 3) {
       leftEmpty = 0;
-      Serial.println("turn left");
+      // Serial.println("turn left");
       rotateLeft3(2);
       goAhead3(1);
       continue;
@@ -100,7 +99,7 @@ void go() {
     disFL = getDis21(leftFrontPin) - 8;
     disFR = PWM_Mode_getDis();
     if (disFL < 10 || disFR < 10) {
-      Serial.println("turn right");
+      // Serial.println("turn right");
       rotateLeft3(-2);
       if (disFR > 10) {
         leftEmpty = 1;
@@ -110,7 +109,7 @@ void go() {
       continue;
     }
 
-    Serial.println("go ahead");
+    // Serial.println("go ahead");
     goAhead3(1);
   }
 }
