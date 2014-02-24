@@ -43,7 +43,6 @@ int leftTailMarker = 0;
 // const int urTRIG = 5; // PWM trigger pin
 // const int leftHeadPin = 17; // A5
 // const int leftTailPin = 16; // A4
-// int enLeft = 11;
 
 int disFL;
 int disFR;
@@ -76,27 +75,34 @@ void go() {
     // if (curPos[0] == X - 1 && curPos[1] == Y - 1)
     //   break;
 
-    disL = getDis21(leftHeadPin);
+    Serial.print("leftEmpty: ");
+    Serial.println(leftEmpty);
 
-    if (disL > 15) {
+    while (!Serial.available());
+    Serial.read();
+
+    disL = getDis21(leftHeadPin) - 8;
+
+    if (disL > 10) {
       leftEmpty++;
     } else {
       leftEmpty = 0;
     }
 
     if (leftEmpty == 3) {
+      leftEmpty = 0;
+      Serial.println("turn left");
       rotateLeft3(2);
       goAhead3(1);
       continue;
     } 
 
-    disFL = getDis21(leftFrontPin);
-    if (disFL < 15) {
-      disFR = PWM_Mode_getDis();
+    disFL = getDis21(leftFrontPin) - 8;
+    disFR = PWM_Mode_getDis();
+    if (disFL < 10 || disFR < 10) {
+      Serial.println("turn right");
       rotateLeft3(-2);
-      if (disFR > 15) {
-        leftEmpty = 2;
-      } else if (getDis21(leftHeadPin) > 15) {
+      if (disFR > 10) {
         leftEmpty = 1;
       } else {
         leftEmpty = 0;
@@ -104,20 +110,9 @@ void go() {
       continue;
     }
 
-    if (disFR < 15) {
-      rotateLeft3(-2);
-      if (getDis21(leftHeadPin) > 15) {
-        leftEmpty = 1;
-      } else {
-        leftEmpty = 0;
-      }
-      continue;
-    }
-
+    Serial.println("go ahead");
     goAhead3(1);
   }
-  
-  while(1) rotateLeft3(2);
 }
 
 void setup() {
@@ -129,16 +124,16 @@ void setup() {
   setPID();
   storeDirection();
   delay(1000);
+
+  go();
 }
 
 void loop() {
-  rotateLeft3(2);
-  delay(1000);
 }
 
 void storeDirection() {
   delay(100);
-  float now = getHeading();
+  int now = getHeading();
   delay(100);
   now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)
@@ -179,7 +174,7 @@ float getDis02(int pin) { // big
 }
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
-  float heading = atan2(scaled.YAxis + 35, scaled.XAxis + 55);
+  float heading = atan2(scaled.YAxis + 15, scaled.XAxis + 85);
   if (heading < 0)
     heading += 2 * PI;
   return heading * 180.0 / M_PI;
@@ -225,7 +220,7 @@ void rotateLeft3(int quarter) {
   // Serial.print("now: ");
   // Serial.println(now);
  
-  while (des - now > 4 || des - now < -4) {
+  while (des - now > 2 || des - now < -2) {
     now = getHeading();
     Serial.println(now);
   }
@@ -255,7 +250,7 @@ void goAhead3(float grid) {
     }
 
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
-    Serial.println(input);
+    // Serial.println(input);
     pid.Compute();
     output *= neg;
     md.setSpeeds(spe + leftCompensate + output, spe - output);

@@ -32,7 +32,7 @@ void setup() {
   pid.SetMode(AUTOMATIC);
   pid.SetOutputLimits(-100, 100);
 
-  // md.setSpeeds(200, 200);
+  md.setSpeeds(150, -150);
 }
 
 void loop() {
@@ -43,13 +43,13 @@ float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
   MagnetometerRaw raw = compass.ReadRawAxis();
 
-  float heading = atan2(raw.YAxis + 35, raw.XAxis + 55);
+  float heading = atan2(raw.YAxis + 15, raw.XAxis + 85);
   if (heading < 0)
     heading += 2 * PI;
 
-  Serial.print(raw.XAxis + 55);
+  Serial.print(raw.XAxis + 85);
   Serial.print(" ");
-  Serial.println(raw.YAxis + 35);
+  Serial.println(raw.YAxis + 15);
   
   // Serial.print(" heading: ");
   // Serial.println(heading * 180 / M_PI);
@@ -129,7 +129,7 @@ void goAhead3(float grid) {
 }
 void storeDirection() {
   delay(100);
-  float now = getHeading();
+  int now = getHeading();
   delay(100);
   now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)

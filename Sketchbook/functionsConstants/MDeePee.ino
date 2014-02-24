@@ -315,7 +315,7 @@ float smoothOutput(float output, float window[], float smoothSum, int marker) {
 }
 void storeDirection() {
   delay(100);
-  float now = getHeading();
+  int now = getHeading();
   delay(100);
   now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)
