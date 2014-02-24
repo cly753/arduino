@@ -34,12 +34,17 @@ int marker = 0;
 float N[8] = {N, NE, E, SE, S, SW, W, NW};
 int Nnow;
 ________________________________________
-************update parameter************
-________________________________________
+****************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-float getDis21(int pin) {
+float getDis21(int pin) { // small
   
-  return 12343.85 * pow(analogRead(pin),-1.15);
+  return 12343.85 * pow(analogRead(pin),-1.15); // directly use voltage level to determine wall?
+}
+
+float getDis02(int pin) { // big
+
+    return 30431 * pow(analogRead(pin), -1.169);
 }
 
 void PWM_Mode_Setup() {

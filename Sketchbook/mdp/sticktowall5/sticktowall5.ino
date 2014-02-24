@@ -7,8 +7,8 @@
 #include <HMC5883L.h>
 #include <PID_v1.h>
 
-#define X 20
-#define Y 15
+#define X 20 // maze size
+#define Y 15 // maze size 
 
 #define rd 562.0
 #define oneGrid 281.0
@@ -17,16 +17,17 @@
 #define urPWM 3
 #define urTRIG 5
 #define leftHeadPin 17
-#define leftTailPin 16
+// #define leftTailPin 16
+#define leftFrontPin 16
 #define enLeft 11
 
 DualVNH5019MotorShield md;
 HMC5883L compass;
 double input, output, target;
-PID pid(&input, &output, &target, 0, 0, 0, DIRECT);
+PID pid(&input, &output, &target, 5, 2, 0, DIRECT);
 
 int curPos[2] = {2, 2};
-int wall[X+1][Y+1];
+int leftEmpty;
 
 float inputWindow[3] = {0, 0, 0};
 float inputSum = 0;
@@ -42,323 +43,99 @@ int leftTailMarker = 0;
 // const int urTRIG = 5; // PWM trigger pin
 // const int leftHeadPin = 17; // A5
 // const int leftTailPin = 16; // A4
-int front;
-int frontLeft;
-int frontRight;
-float left;
-float leftHead;
-float leftTail;
 // int enLeft = 11;
+
+int disFL;
+int disFR;
+int disL;
 
 int N[8];
 int Nnow;
 
-int getFront() {
-  int dis;
-  if (Nnow == 0) {
-    if (wall[curPos[0]-1][curPos[1]+1] == 2) {
-      // sense left front
-      rotateLeft3(1);
-      if (PWM_Mode_getDis() < 14)
-        wall[curPos[0]-1][curPos[1]+1] = 1;
-      else
-        wall[curPos[0]-1][curPos[1]+1] = 0;
-      rotateLeft3(-1);
-    }
-
-    if (wall[curPos[0]][curPos[1]+1] == 2) {
-      // sense left front
-      if (PWM_Mode_getDis() < 10)
-        wall[curPos[0]][curPos[1]+1] = 1;
-      else
-        wall[curPos[0]][curPos[1]+1] = 0;
-    }
-
-    if (wall[curPos[0]-1][curPos[1]+1] + wall[curPos[0]][curPos[1]+1] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 2) {
-    if (wall[curPos[0]+1][curPos[1]] == 2) {
-      // sense left front
-      rotateLeft3(1);
-      if (PWM_Mode_getDis() < 14)
-        wall[curPos[0]+1][curPos[1]] = 1;
-      else
-        wall[curPos[0]+1][curPos[1]] = 0;
-      rotateLeft3(-1);
-    }
-
-    if (wall[curPos[0]+1][curPos[1]-1] == 2) {
-      // sense left front
-      if (PWM_Mode_getDis() < 10)
-        wall[curPos[0]+1][curPos[1]-1] = 1;
-      else
-        wall[curPos[0]+1][curPos[1]-1] = 0;
-    }
-
-    if (wall[curPos[0]+1][curPos[1]] + wall[curPos[0]+1][curPos[1]-1] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 4) {
-    if (wall[curPos[0]][curPos[1]-2] == 2) {
-      // sense left front
-      rotateLeft3(1);
-      if (PWM_Mode_getDis() < 14)
-        wall[curPos[0]][curPos[1]-2] = 1;
-      else
-        wall[curPos[0]][curPos[1]-2] = 0;
-      rotateLeft3(-1);
-    }
-
-    if (wall[curPos[0]-1][curPos[1]-2] == 2) {
-      // sense left front
-      if (PWM_Mode_getDis() < 10)
-        wall[curPos[0]-1][curPos[1]-2] = 1;
-      else
-        wall[curPos[0]-1][curPos[1]-2] = 0;
-    }
-
-    if (wall[curPos[0]][curPos[1]-2] + wall[curPos[0]][curPos[1]-2] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 6) {
-    if (wall[curPos[0]-2][curPos[1]-1] == 2) {
-      // sense left front
-      rotateLeft3(1);
-      if (PWM_Mode_getDis() < 14)
-        wall[curPos[0]-2][curPos[1]-1] = 1;
-      else
-        wall[curPos[0]-2][curPos[1]-1] = 0;
-      rotateLeft3(-1);
-    }
-
-    if (wall[curPos[0]-2][curPos[1]] == 2) {
-      // sense left front
-      if (PWM_Mode_getDis() < 10)
-        wall[curPos[0]-2][curPos[1]] = 1;
-      else
-        wall[curPos[0]-2][curPos[1]] = 0;
-    }
-
-    if (wall[curPos[0]-2][curPos[1]-1] + wall[curPos[0]-2][curPos[1]] != 0)
-      return 1;
-    return 0;
-  }
-}
-
-int getLeft() {
-  int dis;
-  if (Nnow == 2) {
-    // if (wall[curPos[0]-1][curPos[1]+1] == 2) {
-    //   // sense left front
-    //   rotateLeft3(1);
-    //   if (PWM_Mode_getDis() < 14)
-    //     wall[curPos[0]-1][curPos[1]+1] = 1;
-    //   else
-    //     wall[curPos[0]-1][curPos[1]+1] = 0;
-    //   rotateLeft3(-1);
-    // }
-
-    if (wall[curPos[0]][curPos[1]+1] == 2) {
-      // sense left front
-      if (getDis21() < 10)
-        wall[curPos[0]][curPos[1]+1] = 1;
-      else
-        wall[curPos[0]][curPos[1]+1] = 0;
-    }
-
-    if (wall[curPos[0]-1][curPos[1]+1] + wall[curPos[0]][curPos[1]+1] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 4) {
-    // if (wall[curPos[0]+1][curPos[1]] == 2) {
-    //   // sense left front
-    //   rotateLeft3(1);
-    //   if (PWM_Mode_getDis() < 14)
-    //     wall[curPos[0]+1][curPos[1]] = 1;
-    //   else
-    //     wall[curPos[0]+1][curPos[1]] = 0;
-    //   rotateLeft3(-1);
-    // }
-
-    if (wall[curPos[0]+1][curPos[1]-1] == 2) {
-      // sense left front
-      if (getDis21() < 10)
-        wall[curPos[0]+1][curPos[1]-1] = 1;
-      else
-        wall[curPos[0]+1][curPos[1]-1] = 0;
-    }
-
-    if (wall[curPos[0]+1][curPos[1]] + wall[curPos[0]+1][curPos[1]-1] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 6) {
-    // if (wall[curPos[0]][curPos[1]-2] == 2) {
-    //   // sense left front
-    //   rotateLeft3(1);
-    //   if (PWM_Mode_getDis() < 14)
-    //     wall[curPos[0]][curPos[1]-2] = 1;
-    //   else
-    //     wall[curPos[0]][curPos[1]-2] = 0;
-    //   rotateLeft3(-1);
-    // }
-
-    if (wall[curPos[0]-1][curPos[1]-2] == 2) {
-      // sense left front
-      if (getDis21() < 10)
-        wall[curPos[0]-1][curPos[1]-2] = 1;
-      else
-        wall[curPos[0]-1][curPos[1]-2] = 0;
-    }
-
-    if (wall[curPos[0]][curPos[1]-2] + wall[curPos[0]][curPos[1]-2] != 0)
-      return 1;
-    return 0;
-  }
-
-  if (Nnow == 0) {
-    // if (wall[curPos[0]-2][curPos[1]-1] == 2) {
-    //   // sense left front
-    //   rotateLeft3(1);
-    //   if (PWM_Mode_getDis() < 14)
-    //     wall[curPos[0]-2][curPos[1]-1] = 1;
-    //   else
-    //     wall[curPos[0]-2][curPos[1]-1] = 0;
-    //   rotateLeft3(-1);
-    // }
-
-    if (wall[curPos[0]-2][curPos[1]] == 2) {
-      // sense left front
-      if (PWM_Mode_getDis() < 10)
-        wall[curPos[0]-2][curPos[1]] = 1;
-      else
-        wall[curPos[0]-2][curPos[1]] = 0;
-    }
-
-    if (wall[curPos[0]-2][curPos[1]-1] + wall[curPos[0]-2][curPos[1]] != 0)
-      return 1;
-    return 0;
-  }
-}
-
 void go() {
   while (1) {
-    while (1) {
-      leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
-      leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
-      // Serial.print("front..............................: ");
-      // Serial.println(front);
-      // Serial.print("leftHead...........................: ");
-      // Serial.println(leftHead);
-      // Serial.print("leftTail...........................: ");
-      // Serial.println(leftTail);
+    // while (1) {
+    //   leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
+    //   leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
+    //   // Serial.print("front..............................: ");
+    //   // Serial.println(front);
+    //   // Serial.print("leftHead...........................: ");
+    //   // Serial.println(leftHead);
+    //   // Serial.print("leftTail...........................: ");
+    //   // Serial.println(leftTail);
       
-      int re = selfAdjust(leftHead, leftTail, 4, 6, 10);
+    //   int re = selfAdjust(leftHead, leftTail, 4, 6, 10);
       
-      if (re == 1) {
-        // Serial.println("done");
-        break;
-      }
-      delay(100);
+    //   if (re == 1) {
+    //     // Serial.println("done");
+    //     break;
+    //   }
+    //   delay(100);
+    // }
+
+    // if (curPos[0] == X - 1 && curPos[1] == Y - 1)
+    //   break;
+
+    disL = getDis21(leftHeadPin);
+
+    if (disL > 15) {
+      leftEmpty++;
+    } else {
+      leftEmpty = 0;
     }
-    
-    // front = PWM_Mode_getDis();
-    // rotateLeft3(1);
-    // frontRight = PWM_Mode_getDis() / 1.1;
-    // rotateLeft3(-1);
-    // frontLeft = PWM_Mode_getDis();
-    // Serial.print("left: ");
-    // Serial.println(frontLeft);
-    // Serial.print("right: ");
-    // Serial.println(frontRight);
 
-    // leftHead = smoothOutput(getDis21(leftHeadPin) - 8, leftHeadWindow, leftHeadSum, leftHeadMarker);
-    // leftTail = smoothOutput(getDis21(leftTailPin) - 8, leftTailWindow, leftTailSum, leftTailMarker);
-    // Serial.print("front..............................: ");
-    // Serial.println(front);
-    // Serial.print("leftHead...........................: ");
-    // Serial.println(leftHead);
-    // Serial.print("leftTail...........................: ");
-    // Serial.println(leftTail);
-
-    // left = 15;
-    // if (leftHead < 10 || leftTail < 10)
-    //   left = 5;
-      
-    // front = 15;
-    // if (frontLeft < 10 || frontRight < 10)
-    //   front = 10;
-
-    left = getLeft();
-    front = getFront();
-    if (!left) {
+    if (leftEmpty == 3) {
       rotateLeft3(2);
       goAhead3(1);
-    } else if (!front) {
-      goAhead3(1);
-    } else {
+      continue;
+    } 
+
+    disFL = getDis21(leftFrontPin);
+    if (disFL < 15) {
+      disFR = PWM_Mode_getDis();
       rotateLeft3(-2);
+      if (disFR > 15) {
+        leftEmpty = 2;
+      } else if (getDis21(leftHeadPin) > 15) {
+        leftEmpty = 1;
+      } else {
+        leftEmpty = 0;
+      }
+      continue;
     }
 
-    delay(100);
-    if (curPos[0] == X - 1 && curPos[1] == Y - 1)
-      break;
+    if (disFR < 15) {
+      rotateLeft3(-2);
+      if (getDis21(leftHeadPin) > 15) {
+        leftEmpty = 1;
+      } else {
+        leftEmpty = 0;
+      }
+      continue;
+    }
+
+    goAhead3(1);
   }
   
   while(1) rotateLeft3(2);
 }
 
 void setup() {
-    Serial.begin(9600);
-    Wire.begin();
-    PWM_Mode_Setup();
-    setCompass();
-    md.init();
-    setPID();
-    storeDirection();
-    mazeInit();
-    delay(1000);
-    
-    // go();
-    // md.setSpeeds(200, 200);
+  Serial.begin(9600);
+  Wire.begin();
+  PWM_Mode_Setup();
+  setCompass();
+  md.init();
+  setPID();
+  storeDirection();
+  delay(1000);
 }
 
 void loop() {
- // goAhead3(10);
- // rotateLeft3(2);
- // rotateLeft3(2);
- // goAhead3(10);
+  rotateLeft3(2);
+  delay(1000);
 }
 
-void mazeInit() { // 2: unknown, 0: free, 1: wall
-  for (int i = 1; i < X; i++) {
-    for (int j = 1; j < y; j++) {
-      wall[i][j] = 2;
-      wall[i][j] = 2;      
-    }
-
-  }
-
-  for (int i = 0; i < X + 1; i++) {
-    wall[i][0] = 1;
-    wall[i][Y] = 1;
-  }
-
-  for (int j = 0; i < X + 1; i++) {
-    wall[0][j] = 1;
-    wall[X][j] = 1;
-  }
-}
 void storeDirection() {
   delay(100);
   float now = getHeading();
@@ -366,6 +143,13 @@ void storeDirection() {
   now = (now + getHeading()) / 2.0;
   for (int i = 0; i < 8; i++)
     N[i] = ((int)now + i * 45) % 360;
+    
+  for (int i = 0; i < 8; i++) {
+    Serial.print("  i: ");
+    Serial.print(i);
+    Serial.print(", N[i]: ");
+    Serial.print(N[i]);
+  }
 }
 void setCompass() {
   compass = HMC5883L();
@@ -385,6 +169,8 @@ void PWM_Mode_Setup() {
       Serial.write(EnPwmCmd[i]);
 }
 
+
+
 int PWM_Mode_getDis() { // a low pull on pin COMP/TRIG  triggering a sensor reading
     digitalWrite(urTRIG, LOW);
     digitalWrite(urTRIG, HIGH);               // reading Pin PWM will output pulses
@@ -396,7 +182,7 @@ float getDis21(int pin) {
 }
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
-  float heading = atan2(scaled.YAxis + 135, scaled.XAxis + 135);
+  float heading = atan2(scaled.YAxis + 35, scaled.XAxis + 55);
   if (heading < 0)
     heading += 2 * PI;
   return heading * 180.0 / M_PI;
@@ -426,33 +212,54 @@ void rotateLeft3(int quarter) {
   int des = N[Nnow];
   
   float now = getHeading();
+
   md.setSpeeds(-150 * neg, 150 * neg);
-  while ((float)des - now > 3 || (float)des - now < -3)
+  
+  for (int i = 0; i < 8; i++) {
+    Serial.print("  i: ");
+    Serial.print(i);
+    Serial.print(", N[i]: ");
+    Serial.print(N[i]);
+  }
+  Serial.print("\nNnow: ");
+  Serial.println(Nnow);
+  Serial.print("des: ");
+  Serial.println(des);
+  Serial.print("now: ");
+  Serial.println(now);
+  while(1);
+ 
+  while (des - now > 4 || des - now < -4) {
     now = getHeading();
+    Serial.println(now);
+  }
+
   md.setBrakes(400, 400);
 }
 void goAhead3(float grid) {
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
-  int spe = 200 * neg;
-  int leftCompensate = 10;
 
-  int a = need / 100;
-  int b = need % 100; // need = a * 100 + b
+  int spe = 200 * neg;
+  int leftCompensate = 23 * neg;
+  
+  int a = need / 50;
+  int b = need % 50; // need = a * 100 + b
   
   target = N[Nnow];
 
-  md.setSpeeds(spe + leftCompensate, spe);
+  md.setSpeeds(spe, spe);
 
   for (int i = 0; i < a; i++) {
-    need = 100;
+    need = 50;
     while (need--) {
       while (digitalRead(enLeft));
       while (!digitalRead(enLeft));
     }
 
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
+    Serial.println(input);
     pid.Compute();
     output *= neg;
     md.setSpeeds(spe + leftCompensate + output, spe - output);
@@ -464,12 +271,12 @@ void goAhead3(float grid) {
   }
   md.setBrakes(400, 400);
   
-  if (grid == 1) {
-    if (Nnow == 0) currentPos[0]++;
-    if (Nnow == 2) currentPos[1]++;
-    if (Nnow == 4) currentPos[0]--;
-    if (Nnow == 6) currentPos[1]--;
-  }
+  // if (grid == 1) {
+  //   if (Nnow == 0) currentPos[0]++;
+  //   if (Nnow == 2) currentPos[1]++;
+  //   if (Nnow == 4) currentPos[0]--;
+  //   if (Nnow == 6) currentPos[1]--;
+  // }
 }
 void shiftLeft(float grid) {
   rotateLeft3(2);

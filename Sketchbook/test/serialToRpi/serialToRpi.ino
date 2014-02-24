@@ -3,11 +3,6 @@ void setup() {
 }
 
 void loop() {
-  sendWhatReceive();
-}
-
-void sendWhatReceive() {
-  if (Serial.available()) {
+  if (Serial.available())
     Serial.println(Serial.read());
-  }
 }

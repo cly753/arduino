@@ -22,8 +22,6 @@ float leftTailSum = 0;
 int leftHeadMarker = 0;
 int leftTailMarker = 0;
 
-
-
 void testPulse() {
   long pulse;
   int spe;

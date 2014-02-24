@@ -21,15 +21,6 @@ int enLeft = 11;
 float N[8]; // N NW W SW S ES E NE
 int Nnow;
 
-void testNormalizeDirection() {
-  for (int i = 1; i < 9; i *= 2) {
-    rotateLeft3(i);
-    delay(500);
-    rotateLeft3(-1 * i);
-    delay(1000);
-  }
-}
-
 void setup() {
   Serial.begin(9600);
   Wire.begin();
@@ -42,30 +33,20 @@ void setup() {
   pid.SetOutputLimits(-100, 100);
 
   // md.setSpeeds(200, 200);
-  // testNormalizeDirection();
 }
 
 void loop() {
-  // getHeading();
-  // delay(50);
-  rotateLeft3(1);
-  delay(750);
-  rotateLeft3(-1);
-  delay(750);
-  rotateLeft3(2);
-  delay(750);
-  rotateLeft3(-2);
-  delay(750);
+   Serial.println(getHeading());
 }
 
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
   MagnetometerRaw raw = compass.ReadRawAxis();
-  Serial.print(raw.XAxis + 105);
-  Serial.print(" ");
-  Serial.println(raw.YAxis + 150);
-  
-  float heading = atan2(raw.YAxis + 135, raw.XAxis + 135);
+//  Serial.print(raw.XAxis + 55);
+//  Serial.print(" ");
+//  Serial.println(raw.YAxis + 35);
+//  
+  float heading = atan2(raw.YAxis + 35, raw.XAxis + 55);
   if (heading < 0)
     heading += 2 * PI;
     
@@ -163,8 +144,6 @@ void goAhead3(float grid) {
 
   int a = need / 50;
   int b = need % 50; // need = a * 50 + b
-
-  target = getTargetDirection(0);
 
   md.setSpeeds(spe, spe);
 
