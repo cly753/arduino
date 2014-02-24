@@ -36,20 +36,21 @@ void setup() {
 }
 
 void loop() {
-   Serial.println(getHeading());
+  getHeading();
 }
 
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
   MagnetometerRaw raw = compass.ReadRawAxis();
-//  Serial.print(raw.XAxis + 55);
-//  Serial.print(" ");
-//  Serial.println(raw.YAxis + 35);
-//  
+
   float heading = atan2(raw.YAxis + 35, raw.XAxis + 55);
   if (heading < 0)
     heading += 2 * PI;
-    
+
+  Serial.print(raw.XAxis + 55);
+  Serial.print(" ");
+  Serial.println(raw.YAxis + 35);
+  
   // Serial.print(" heading: ");
   // Serial.println(heading * 180 / M_PI);
     
@@ -96,46 +97,6 @@ void rotateLeft3(int quarter) {
     now = getHeading();
   md.setBrakes(400, 400);
 }
-void goAhead2(float grid) {
-  float neg = 1.0;
-  if (grid < 0) neg = -1.0;
-  int need = grid * oneGrid * neg;
-  int spe = 150 * neg;
-
-  int a = need / 50;
-  int b = need % 50; // need = a * 50 + b
-
-  int integrate = 0;
-  int error;
-  
-  float target2 = getHeading();
-  delay(200);
-  target = (getHeading() + target2) / 2.0;
-  delay(200);
-
-  md.setSpeeds(spe, spe);
-
-  for (int i = 0; i < a; i++) {
-    need = 50;
-    while (need--) {
-      while (digitalRead(enLeft));
-      while (!digitalRead(enLeft));
-    }
-
-    input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
-    pid.Compute();
-    output *= neg;
-    md.setSpeeds(spe + output, spe - output);
-  }
-
-  while (b--) {
-    while (digitalRead(enLeft));
-    while (!digitalRead(enLeft));
-  }
-
-  // rotateLeft2(getHeading() - st);
-  md.setBrakes(400, 400);
-}
 void goAhead3(float grid) {
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
@@ -164,18 +125,15 @@ void goAhead3(float grid) {
     while (digitalRead(enLeft));
     while (!digitalRead(enLeft));
   }
-
-  // rotateLeft2(getHeading() - st);
   md.setBrakes(400, 400);
 }
 void storeDirection() {
   delay(100);
   float now = getHeading();
   delay(100);
-  Nnow = 0;
-  now = (now + getHeading()) / 2.0;
+  now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)
-    N[i] = ((int)now + i * 45) % 360;
+    N[i] = (now + i * 45) % 360;
 }
 float smoothOutput(float output, float window[], float smoothSum, int marker) {
   if (output < smoothSum / 3.0 - 0.5 || output > smoothSum / 3.0 + 0.5) {

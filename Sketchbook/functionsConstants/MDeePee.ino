@@ -137,12 +137,14 @@ void goAhead3(float grid) {
   float neg = 1.0;
   if (grid < 0) neg = -1.0;
   int need = grid * oneGrid * neg;
-  int spe = 150 * neg;
 
+  int spe = 200 * neg;
+  int leftCompensate = 23 * neg;
+  
   int a = need / 50;
-  int b = need % 50; // need = a * 50 + b
-
-  target = getTargetDirection(0);
+  int b = need % 50; // need = a * 100 + b
+  
+  target = N[Nnow];
 
   md.setSpeeds(spe, spe);
 
@@ -152,20 +154,26 @@ void goAhead3(float grid) {
       while (digitalRead(enLeft));
       while (!digitalRead(enLeft));
     }
-    
+
     input = smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
+    Serial.println(input);
     pid.Compute();
     output *= neg;
-    md.setSpeeds(spe + output, spe - output);
+    md.setSpeeds(spe + leftCompensate + output, spe - output);
   }
 
   while (b--) {
     while (digitalRead(enLeft));
     while (!digitalRead(enLeft));
   }
-
-  // rotateLeft2(getHeading() - st);
   md.setBrakes(400, 400);
+  
+  // if (grid == 1) {
+  //   if (Nnow == 0) curPos[0]++;
+  //   if (Nnow == 2) curPos[1]++;
+  //   if (Nnow == 4) curPos[0]--;
+  //   if (Nnow == 6) curPos[1]--;
+  // }
 }
 
 void rotateLeft(int degree) { // require md, encoder left, encoder righ, 
@@ -203,9 +211,14 @@ void rotateLeft3(int quarter) {
   int des = N[Nnow];
   
   float now = getHeading();
+
   md.setSpeeds(-150 * neg, 150 * neg);
-  while ((float)des - now > 3 || (float)des - now < -3)
+  
+  while (des - now > 4 || des - now < -4) {
     now = getHeading();
+    Serial.println(now);
+  }
+
   md.setBrakes(400, 400);
 }
 
@@ -304,9 +317,9 @@ void storeDirection() {
   delay(100);
   float now = getHeading();
   delay(100);
-  now = (now + getHeading()) / 2.0;
+  now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)
-    N[i] = ((int)now + i * 45) % 360;
+    N[i] = (now + i * 45) % 360;
 }
 
 // compensate for brake

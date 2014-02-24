@@ -7,8 +7,8 @@
 #include <HMC5883L.h>
 #include <PID_v1.h>
 
-#define X 20 // maze size
-#define Y 15 // maze size 
+#define goalX 20
+#define goalY 15
 
 #define rd 562.0
 #define oneGrid 281.0
@@ -140,16 +140,9 @@ void storeDirection() {
   delay(100);
   float now = getHeading();
   delay(100);
-  now = (now + getHeading()) / 2.0;
+  now = (now + getHeading()) / 2;
   for (int i = 0; i < 8; i++)
-    N[i] = ((int)now + i * 45) % 360;
-    
-  for (int i = 0; i < 8; i++) {
-    Serial.print("  i: ");
-    Serial.print(i);
-    Serial.print(", N[i]: ");
-    Serial.print(N[i]);
-  }
+    N[i] = (now + i * 45) % 360;
 }
 void setCompass() {
   compass = HMC5883L();
@@ -179,6 +172,10 @@ int PWM_Mode_getDis() { // a low pull on pin COMP/TRIG  triggering a sensor read
 float getDis21(int pin) {
 
   return 12343.85 * pow(analogRead(pin),-1.15);
+}
+float getDis02(int pin) { // big
+
+    return 30431 * pow(analogRead(pin), -1.169);
 }
 float getHeading() {
   MagnetometerScaled scaled = compass.ReadScaledAxis();
@@ -215,19 +212,18 @@ void rotateLeft3(int quarter) {
 
   md.setSpeeds(-150 * neg, 150 * neg);
   
-  for (int i = 0; i < 8; i++) {
-    Serial.print("  i: ");
-    Serial.print(i);
-    Serial.print(", N[i]: ");
-    Serial.print(N[i]);
-  }
-  Serial.print("\nNnow: ");
-  Serial.println(Nnow);
-  Serial.print("des: ");
-  Serial.println(des);
-  Serial.print("now: ");
-  Serial.println(now);
-  while(1);
+  // for (int i = 0; i < 8; i++) {
+  //   Serial.print("  i: ");
+  //   Serial.print(i);
+  //   Serial.print(", N[i]: ");
+  //   Serial.print(N[i]);
+  // }
+  // Serial.print("\nNnow: ");
+  // Serial.println(Nnow);
+  // Serial.print("des: ");
+  // Serial.println(des);
+  // Serial.print("now: ");
+  // Serial.println(now);
  
   while (des - now > 4 || des - now < -4) {
     now = getHeading();
@@ -272,10 +268,10 @@ void goAhead3(float grid) {
   md.setBrakes(400, 400);
   
   // if (grid == 1) {
-  //   if (Nnow == 0) currentPos[0]++;
-  //   if (Nnow == 2) currentPos[1]++;
-  //   if (Nnow == 4) currentPos[0]--;
-  //   if (Nnow == 6) currentPos[1]--;
+  //   if (Nnow == 0) curPos[0]++;
+  //   if (Nnow == 2) curPos[1]++;
+  //   if (Nnow == 4) curPos[0]--;
+  //   if (Nnow == 6) curPos[1]--;
   // }
 }
 void shiftLeft(float grid) {
