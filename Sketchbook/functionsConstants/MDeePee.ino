@@ -188,8 +188,8 @@ void rotateLeft(int degree) { // require md, encoder left, encoder righ,
     while (!digitalRead(enLeft));
   }
 
-  md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
-  delay(50);
+  // md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
+  // delay(50);
 
   md.setBrakes(400, 400);
 }
@@ -223,30 +223,24 @@ void rotateLeft3(int quarter) {
 }
 
 void shiftLeft(float grid) {
-    rotateLeft(90);
-    goAhead(grid);
-    rotateLeft(-90);
+  rotateLeft3(2);
+  goAhead3(grid);
+  rotateLeft3(-2);
 }
 int selfAdjust(float leftHead, float leftTail, int S, int M, int L) {
   if (L < leftHead && L < leftTail) {
-    Serial.println("do nothing");
     return 1; // reutn 1 if done
   } else if (M < leftHead && leftHead < L && M < leftTail && leftTail < L) {
-    Serial.println("shift left");
     shiftLeft(0.1);
   } else if (leftHead < S && leftTail < S) {
-    Serial.println("shift right");
     shiftLeft(-0.1);
   } else if (leftHead < M && M < leftTail) {
-    Serial.println("turn right");
     rotateLeft(-5);
   } else if (M < leftHead && leftTail < M) {
-    Serial.println("turn left");
     rotateLeft(5);
   } else {
     return 1;
-  }
-    
+  }  
   return 0; // return 0 if not done
 }
 int selfAdjust2(float leftHead, float leftTail, int S, int M, int L) {
