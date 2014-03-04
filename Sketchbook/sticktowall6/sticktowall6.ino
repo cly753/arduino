@@ -12,7 +12,7 @@
 #define rd 562.0
 #define oneGrid 290.0
 #define one360speed150 1600.0
-#define one90speed150 390
+#define one90speed150 395
 #define one90speed200 394
 #define one90speed300 390 // ? 
 #define one90speed400 380
@@ -24,6 +24,7 @@
 #define urTRIG 5
 #define leftHeadPin 17
 #define leftFrontPin 16
+#define middlePin 15
 #define enLeft 11
 
 DualVNH5019MotorShield md;
@@ -48,6 +49,7 @@ int leftTailMarker = 0;
 int disFL;
 int disFR;
 int disL;
+int disM;
 
 int N[8];
 int Nnow;
@@ -64,7 +66,7 @@ void go() {
     //   tenMove = 10;
     // }
     correct();
-    delay(300);
+    // delay(300);
 
     disL = getDis21(leftHeadPin) - 9;
     if (disL > 10) {
@@ -77,21 +79,21 @@ void go() {
       leftEmpty = 0;
       // rotateLeft90speedX00(1);
       rotateLeft3(2);
-      delay(300);
+      // delay(300);
       goAhead3(1);
       continue;
     } 
 
+    disM = getDis21(middlePin) - 9;
     disFL = getDis21(leftFrontPin) - 9;
     disFR = PWM_Mode_getDis();
-    if (disFL < 10 || disFR < 10) {
+    if (disFL < 10 || disFR < 10 || disM < 10) {
       // rotateLeft90speedX00(-1);
       rotateLeft3(-2);
-      if (disFR > 10) {
+
+      leftEmpty = 0;
+      if (disFR > 10 && disM > 10)
         leftEmpty = 1;
-      } else {
-        leftEmpty = 0;
-      }
       continue;
     }
     goAhead3(1);
@@ -109,16 +111,22 @@ void correct() {
   delta = abs(temp);
   temp2 = 360 - delta;
 
-  if (0 < temp && delta == min(delta, temp2))
+  if (0 < temp && delta == min(delta, temp2)) {
     md.setSpeeds(60, -60);
-  else
+  } else {
     md.setSpeeds(-60, 60);
+  }
 
-  while (min(delta, temp2) > 3) {
+  while (min(delta, temp2) > 1) {
     now = getHeading();
     temp  = des - now;
     delta = abs(temp);
     temp2 = 360 - delta;
+
+    if (0 < temp && delta == min(delta, temp2)) 
+      md.setSpeeds(60, -60);
+    else 
+      md.setSpeeds(-60, 60);
   }
   md.setBrakes(400, 400);
 }
@@ -131,15 +139,11 @@ void setup() {
   setCompass();
   md.init();
   setPID();
-  storeDirection();
+  storeDirectionByRotation();
   pinMode(enLeft, INPUT);
   delay(500);
 
   go();
-  // rotateLeft3(2);
-  // rotateLeft3(2);
-  // rotateLeft3(2);
-  // rotateLeft3(2);
 }
 
 void loop() {
@@ -148,6 +152,7 @@ void loop() {
   // correct();
   // delay(1000);
   // getHeading();
+  // delay(300);
 }
 
 void storeDirection() {
@@ -159,10 +164,22 @@ void storeDirection() {
     N[i] = (now + i * 45) % 360;
   Nnow = 0;
 }
+void storeDirectionByRotation() {
+  Nnow = 0;
+  N[0] = getHeading();
+  for (int i = 1; i < 4; i++) {
+    rotateLeft90speedX00(-1);
+    delay(500);
+    N[i*2] = getHeading();
+    delay(500);
+  }
+  rotateLeft90speedX00(-1);
+}
 void setCompass() {
   compass = HMC5883L();
   compass.SetMeasurementMode(Measurement_Continuous);
 }
+
 void setPID() {
   pid.SetMode(AUTOMATIC);
   pid.SetOutputLimits(-100, 100);
@@ -218,27 +235,14 @@ void rotateLeft360(int times) { // require md, encoder left, encoder righ,
   delay(50);
   md.setBrakes(400, 400);
 }
-void rotateLeft90(int times) {
-  float neg = 1.0;
-  if (times < 0) neg = -1.0;
-  int need = times * one90speed150 * neg;
-
-  md.setSpeeds(-150 * neg, 150 * neg);
-  while (need--) {
-    while (digitalRead(enLeft));
-    while (!digitalRead(enLeft));
-  }
-
-  md.setBrakes(400, 400);
-}
 void rotateLeft90speedX00(int times) {
   int neg = 1;
   if (times < 0) neg = -1;
-  int need = times * one90speed400 * neg;
+  int need = times * one90speed150 * neg;
 
-  Nnow = (Nnow - 2 * times + 8) % 8;
+  Nnow = ((Nnow - 2 * times + 8) % 8 + 8) % 8;
 
-  md.setSpeeds(-400 * neg, 400 * neg);
+  md.setSpeeds(-150 * neg, 150 * neg);
   while (need--) {
     while (digitalRead(enLeft));
     while (!digitalRead(enLeft));
@@ -305,17 +309,4 @@ void goAhead3(float grid) {
   //   if (Nnow == 4) curPos[0]--;
   //   if (Nnow == 6) curPos[1]--;
   // }
-}
-float smoothOutput(float output, float window[], float smoothSum, int marker) {
-  if (output < smoothSum / 3.0 - 0.5 || output > smoothSum / 3.0 + 0.5) {
-    for (int i = 0; i < 3; i++)
-      window[i] = output;
-    smoothSum = output * 3;
-  } else {
-    smoothSum += output;
-    smoothSum -= window[marker];
-    window[marker] = output;
-    marker = (marker + 1) % 3;
-  }
-  return smoothSum / 3.0;
 }

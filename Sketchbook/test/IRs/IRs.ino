@@ -15,7 +15,7 @@ float getDis21x() {
 }
 
 float getDis02() {
-    return 30431 * pow(analogRead(18), -1.169);
+    return 30431 * pow(analogRead(A0), -1.169);
 }
 
 // float getDisus() {
@@ -37,13 +37,13 @@ void setup() {
 }
 
 void loop() {
-    // Serial.print("ir02 : ");
-    // Serial.print(getDis02());
-    // Serial.println("cm");
-
-    Serial.print("\nir21 : ");
-    Serial.print(getDis21());
+    Serial.print("ir02 : ");
+    Serial.print(getDis02());
     Serial.println("cm");
+
+    // Serial.print("\nir21 : ");
+    // Serial.print(getDis21());
+    // Serial.println("cm");
     // Serial.print("ir21x: ");
     // Serial.print(getDis21x());
     // Serial.println("cm");
