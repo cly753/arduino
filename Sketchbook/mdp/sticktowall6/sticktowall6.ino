@@ -36,16 +36,6 @@ int distanceNow;
 int curPos[2] = {2, 2};
 int leftEmpty;
 
-float inputWindow[3] = {0, 0, 0};
-float inputSum = 0;
-int inputMarker = 0;
-float leftHeadWindow[3] = {0, 0, 0};
-float leftTailWindow[3] = {0, 0, 0};
-float leftHeadSum = 0;
-float leftTailSum = 0;
-int leftHeadMarker = 0;
-int leftTailMarker = 0;
-
 int disFL;
 int disFR;
 int disL;
@@ -53,18 +43,10 @@ int disM;
 
 int N[8];
 int Nnow;
-int tenMove;
 
 void go() {
   leftEmpty = 0;
-  // tenMove = 10;
   while (1) {
-    // if (tenMove) {
-    //   tenMove--;
-    // } else {
-    //   correct();
-    //   tenMove = 10;
-    // }
     correct();
     // delay(300);
 
@@ -194,12 +176,12 @@ void PWM_Mode_Setup() {
       Serial.write(EnPwmCmd[i]);
 }
 
-int PWM_Mode_getDis() { // a low pull on pin COMP/TRIG  triggering a sensor reading
-    digitalWrite(urTRIG, LOW);
-    digitalWrite(urTRIG, HIGH);               // reading Pin PWM will output pulses
-    return pulseIn(urPWM, LOW) / 50;
+int PWM_Mode_getDis() {
+  digitalWrite(urTRIG, LOW);
+  digitalWrite(urTRIG, HIGH);
+  return pulseIn(urPWM, LOW) / 50;
 }
-float getDis21(int pin) {
+float getDis21(int pin) { // small
 
   return 12343.85 * pow(analogRead(pin),-1.15);
 }
@@ -220,7 +202,7 @@ float getHeading() {
   return heading * 180.0 / M_PI;
 }
 
-void rotateLeft360(int times) { // require md, encoder left, encoder righ, 
+void rotateLeft360(int times) {
   float neg = 1.0;
   if (times < 0) neg = -1.0;
   int need = times * one360speed150 * neg;
@@ -310,3 +292,4 @@ void goAhead3(float grid) {
   //   if (Nnow == 6) curPos[1]--;
   // }
 }
+
