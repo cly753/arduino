@@ -315,6 +315,36 @@ void storeDirection() {
   for (int i = 0; i < 8; i++)
     N[i] = (now + i * 45) % 360;
 }
+void setCompassOffset() {
+  MagnetometerRaw raw;
+  md.setSpeeds(200, -200);
+
+  int minX = 600;
+  int maxX = -600;
+  int minY = 600;
+  int maxY = -600;
+
+  int need = one90speed200 * 8;
+  while (need--) {
+    raw = compass.ReadRawAxis();
+    if (abs(raw.XAxis) <= 400 && abs(raw.YAxis) <= 400) {
+      minX = min(raw.XAxis, minX);
+      maxX = max(raw.XAxis, maxX);
+      minY = min(raw.YAxis, minY);
+      maxY = max(raw.YAxis, maxY);
+    }
+
+    while (digitalRead(enLeft));
+    while (!digitalRead(enLeft));
+  }
+
+  md.setBrakes(400, 400);
+  
+  compassX = (minX + maxX) / 2;
+  compassY = (minY + maxY) / 2;
+
+  delay(1000);
+}
 
 // compensate for brake
 

@@ -6,12 +6,11 @@ void setup() {
   Serial.println("begin...");
   pinMode(pin, OUTPUT);
   pinMode(3, INPUT);
-  attachInterrupt(0, blink, CHANGE);
+  attachInterrupt(1, blink, CHANGE);
 }
 
 void loop() {
   digitalWrite(pin, state);
-
 }
 
 void blink() {

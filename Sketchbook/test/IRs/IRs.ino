@@ -7,7 +7,7 @@ int trigger = 3;
 int urpwm = 5;
 
 float getDis21() {
-    return 12343.85 * pow(analogRead(16),-1.15);
+    return 12343.85 * pow(analogRead(A1),-1.15);
 }
 
 float getDis21x() {
@@ -37,9 +37,9 @@ void setup() {
 }
 
 void loop() {
-    Serial.print("ir02 : ");
-    Serial.print(getDis02());
-    Serial.println("cm");
+    // Serial.print("ir02 : ");
+    // Serial.print(getDis02());
+    // Serial.println("cm");
 
     // Serial.print("\nir21 : ");
     // Serial.print(getDis21());
