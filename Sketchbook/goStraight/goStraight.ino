@@ -15,11 +15,11 @@ void setup() {
   pinMode(enLeftPin, INPUT);
   pinMode(enRightPin, INPUT);
 
-  setTimerInterrupt();
+  // setTimerInterrupt();
 
   md.init();
 
-  attachInterrupt(1, countRight, RISING);
+  // attachInterrupt(1, countRight, RISING);
 
   md.setSpeeds(250, 250);
   while (enLeft--) {
@@ -27,8 +27,8 @@ void setup() {
     while (!digitalRead(enLeftPin));
   }
 
-  detachInterrupt(1);
-  detachTimerInterrupt();
+  // detachInterrupt(1);
+  // detachTimerInterrupt();
 
   md.setBrakes(400, 400);
 
@@ -80,7 +80,7 @@ void setTimerInterrupt() {
   TCCR1B = 0;     // same for TCCR1B
 
   // set compare match register to desired timer count:
-  OCR1A = 3124;
+  OCR1A = 3124; // 3124
   // turn on CTC mode:
   TCCR1B |= (1 << WGM12);
   // Set CS10 and CS12 bits for 1024 prescaler:
