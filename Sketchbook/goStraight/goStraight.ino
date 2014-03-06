@@ -12,59 +12,57 @@ volatile int leftCompensate;
 
 void setup() {
   Serial.begin(9600);
-  // setTimerInterrupt();
-  
-  
-  // enLeft = 270;
-  // enRight = 270;
-  // leftCompensate = 0;
-
-  // attachInterrupt(1, countRight, RISING);
-
-  // md.setSpeeds(200, 200);
-  // while (enLeft--) {
-    // while (digitalRead(enLeftPin));
-    // while (!digitalRead(enLeftPin));
-  // }
-
-  // detachInterrupt(1);
-  // detachTimerInterrupt();
-
-  // md.setBrakes(400, 400);
-  // goAhead4(1);
-
-  // setTimerInterrupt();
-  md.init();
-  Timer1.initialize(100000);
-  Timer1.attachInterrupt( timerIsr );
-  md.init();
-
   pinMode(enLeftPin, INPUT);
   pinMode(enRightPin, INPUT);
 
-  enLeft = 300;
-  enRight = 300;
-  leftCompensate = 0;
+  setTimerInterrupt();
 
-  
+  md.init();
+
   attachInterrupt(1, countRight, RISING);
 
-  md.setSpeeds(200, 200);
-
+  md.setSpeeds(250, 250);
   while (enLeft--) {
     while (digitalRead(enLeftPin));
     while (!digitalRead(enLeftPin));
   }
+
   detachInterrupt(1);
   detachTimerInterrupt();
+
   md.setBrakes(400, 400);
+
+  // md.init();
+  // Timer1.initialize(100000);
+  // Timer1.attachInterrupt( timerIsr );
+  // md.init();
+
+  // pinMode(enLeftPin, INPUT);
+  // pinMode(enRightPin, INPUT);
+
+  // enLeft = 300;
+  // enRight = 300;
+  // leftCompensate = 0;
+
   
-  // Serial.println("enLeft: ");
-  // Serial.println(enLeft);
-  // Serial.println("enRight: ");
-  // Serial.println(enRight);
-  // Serial.println("leftCompensate: ");
-  // Serial.println(leftCompensate);
+  // attachInterrupt(1, countRight, RISING);
+
+  // md.setSpeeds(200, 200);
+
+  // while (enLeft--) {
+  //   while (digitalRead(enLeftPin));
+  //   while (!digitalRead(enLeftPin));
+  // }
+  // detachInterrupt(1);
+  // detachTimerInterrupt();
+  // md.setBrakes(400, 400);
+  
+  Serial.println("enLeft: ");
+  Serial.println(enLeft);
+  Serial.println("enRight: ");
+  Serial.println(enRight);
+  Serial.println("leftCompensate: ");
+  Serial.println(leftCompensate);
 }
 
 void loop() {
@@ -104,5 +102,5 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 void timerIsr() {
-  md.setM1Speed(200 + leftCompensate);
+  md.setM1Speed(250 + leftCompensate);
 }
