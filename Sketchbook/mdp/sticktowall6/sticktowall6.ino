@@ -172,6 +172,45 @@ void correct() {
   // Serial.println(now);
   md.setBrakes(400, 400);
 }
+void correct2() {
+  int des = N[Nnow];
+  int now = getHeading();
+  int temp;
+  int spe = 100;
+
+  temp = des - now;
+  if (temp < 0) temp += 360;
+
+  if (temp < 180)
+    des = (now + (int)0.5 * temp) % 360;
+  else
+    des = (now - (int)0.5 * temp + 360) % 360;
+
+  temp  = des - now;
+  if (temp < 0) temp += 360;
+
+  if (temp < 180) {
+    md.setSpeeds(spe, -spe);
+  } else {
+    temp = 360 - temp;
+    md.setSpeeds(-spe, spe);
+  }
+
+  while (temp > 1) {
+    now = getHeading();
+    temp  = des - now;
+    if (temp < 0) temp += 360;
+    if (temp < 180) {
+      md.setSpeeds(spe, -spe);
+    }
+    else {
+      temp = 360 - temp;
+      md.setSpeeds(-spe, spe);
+    }
+  }
+
+  md.setBrakes(400, 400);
+}
 bool getDir(int now, int des) {
   des -= now;
   if (des < 0) des += 360;
