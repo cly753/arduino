@@ -182,18 +182,16 @@ void correct2() {
   if (temp < 0) temp += 360;
 
   if (temp < 180)
-    des = (now + (int)0.5 * temp) % 360;
+    des = (now + (int)(0.5 * temp)) % 360;
   else
-    des = (now - (int)0.5 * temp + 360) % 360;
+    des = (now - (int)(0.5 * (360 - temp)) + 360) % 360;
 
   temp  = des - now;
   if (temp < 0) temp += 360;
 
   if (temp < 180) {
-    md.setSpeeds(spe, -spe);
   } else {
     temp = 360 - temp;
-    md.setSpeeds(-spe, spe);
   }
 
   while (temp > 1) {
@@ -454,13 +452,15 @@ void rotateLeft4(int times) {
   enRight = enLeft;
   leftCompensate = 0;
 
-  Serial.println("==============begin: ");
-  Serial.print("enLeft: ");
-  Serial.println(enLeft);
-  Serial.print("enRight: ");
-  Serial.println(enRight);
-  Serial.print("leftCompensate: ");
-  Serial.println(leftCompensate);
+  Nnow = (Nnow - times + 8) % 8;
+
+  // Serial.println("==============begin: ");
+  // Serial.print("enLeft: ");
+  // Serial.println(enLeft);
+  // Serial.print("enRight: ");
+  // Serial.println(enRight);
+  // Serial.print("leftCompensate: ");
+  // Serial.println(leftCompensate);
 
   setTimerInterrupt();
   attachInterrupt(1, countRight, RISING);
@@ -476,13 +476,13 @@ void rotateLeft4(int times) {
   detachTimerInterrupt();
   md.setBrakes(400, 400);
 
-  Serial.println("==============end  : ");
-  Serial.print("enLeft: ");
-  Serial.println(enLeft);
-  Serial.print("enRight: ");
-  Serial.println(enRight);
-  Serial.print("leftCompensate: ");
-  Serial.println(leftCompensate);
+  // Serial.println("==============end  : ");
+  // Serial.print("enLeft: ");
+  // Serial.println(enLeft);
+  // Serial.print("enRight: ");
+  // Serial.println(enRight);
+  // Serial.print("leftCompensate: ");
+  // Serial.println(leftCompensate);
 }
 void goAhead3(int grid) {
   int neg = 1;
@@ -595,7 +595,7 @@ ISR(TIMER1_COMPA_vect) {
 
 int smooth21(int pin) {
   int small = 1000;
-  int big = -1;
+  int big = -10;
   int sum = 0;
   int temp = 0;
 
@@ -611,7 +611,7 @@ int smooth21(int pin) {
 }
 int smooth02(int pin) {
   int small = 1000;
-  int big = -1;
+  int big = -10;
   int sum = 0;
   int temp = 0;
 
@@ -628,7 +628,7 @@ int smooth02(int pin) {
 
 void driftLeft() {
   neg = 1;
-  enLeft = 0.5 * PI * 2 * oneGridInterruptspeed200 - 35;
+  enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.5 - 35; // degree to rotate
   enRight = 1.9 * enLeft;
   leftCompensate = 0;
 
@@ -636,7 +636,7 @@ void driftLeft() {
   attachInterrupt(1, countRightDrift, RISING);
 
   md.init();
-  md.setSpeeds(200, 200 * 1.9);
+  md.setSpeeds(200, 200 * 1.9); // n ~ radius of the circle // remember to change the ratio in "countRightDrift()"
 
   while (enLeft--) {
     while (digitalRead(enLeftPin));
@@ -647,36 +647,60 @@ void driftLeft() {
   md.setBrakes(400, 400);
 }
 
+void checklistA1() {
+  // disable "storeDirection"
+  padMode();
+}
+void checklistA2() {
+  // disable "storeDirection"
+  while (1) {
+    Serial.print("distance: ");
+    Serial.println(PWM_Mode_getDis());
+    delay(250);
+  }
+}
+void checklistA3() {
+  // disable "storeDirection"
+  goAhead4(10);
+}
+void checklistA4() {
+  // disable "storeDirection"
+  Nnow = 0;
+  int degree = 1080;
+  int quarter = degree % 90;
+  for (int i = 0; i < quarter; i++) {
+    rotateLeft4(1);
+    if (Nnow == 0)
+      correct();
+  }
+}
 void checklistA5() {
-  for (int i = 0; i < 15; i++) {
-    if (PWM_Mode_getDis() > 10) {
-      goAhead4(1);
-    } else {
-      rotateLeft4(1);
-      goAhead4(3);
-      rotateLeft4(-1);
-      goAhead4(4);
-      rotateLeft4(-1);
-      goAhead4(3);
-      rotateLeft4(1);
-      i -= 3;
-    }
-  }
+  // disable "storeDirection"
+  Nnow = 0;
+  N[Nnow] = getHeading();
+  for (int x = 0; x < 2; x++) {
+      for (int i = 0; i < 15; i++) {
+        if (PWM_Mode_getDis() > 10) {
+          goAhead4(1);
+          correct();
+        } else {
+          rotateLeft4(1);
+          goAhead4(3);
+          rotateLeft4(-1);
+          goAhead4(4);
+          rotateLeft4(-1);
+          goAhead4(3);
+          rotateLeft4(1);
+          i -= 3;
 
-  rotateLeft4(2);
-
-  for (int i = 0; i < 15; i++) {
-    if (PWM_Mode_getDis() > 10) {
-      goAhead4(1);
-    } else {
-      rotateLeft4(1);
-      goAhead4(3);
-      rotateLeft4(-1);
-      goAhead4(4);
-      rotateLeft4(-1);
-      goAhead4(3);
-      rotateLeft4(1);
-      i -= 3;
-    }
+          correct();
+        }
+      }
+      rotateLeft4(2);
+      N[Nnow] = getHeading();
   }
+}
+void checklistA6() {
+  // disable "storeDirection"
+  driftLeft();
 }
