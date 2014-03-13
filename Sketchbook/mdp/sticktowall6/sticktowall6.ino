@@ -216,6 +216,26 @@ void correctPosition() {
   }
   md.setBrakes(400, 400);
 }
+void correctToGoalArea() {
+  for (int i = 0; i < 3; i++) {
+    if (Nnow == 0) // current direction
+      rotateLeft4(-1);
+    else
+      rotateLeft4(1);
+
+    correct();
+
+    disFL = smooth21(leftFrontPin) - 10;
+    disFR = smooth21(rightFrontPin) - 10;
+    disFM = -1;
+    while (disFM == -1)
+      disFM = PWM_Mode_getDis() - 1;
+
+    while (disFL >  10 && disFM > 10 && disFR > 10)
+      md.setSpeeds(200, 200);
+    md.setBrakes(400, 400);
+  }
+}
 
 void setup() {
   delay(1000);
