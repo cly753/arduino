@@ -18,8 +18,8 @@
 #define one90speed300 390 // ? 
 #define one90speed400 380
 
-#define one90Interruptspeed200 398
-#define one90ToRightInterruptspeed200 398
+#define one90Interruptspeed200 397
+#define one90ToRightInterruptspeed200 397
 
 #define leftCompensate350 18 // ?
 #define leftCompensate250 5
@@ -42,7 +42,7 @@ HMC5883L compass;
 // double input, output, target;
 // PID pid(&input, &output, &target, 4, 1, 0, DIRECT);
 
-int curPos[2] = {2, 2};
+int curPos[2];
 int leftEmpty;
 
 int N[8];
@@ -61,12 +61,11 @@ volatile int enRight;
 volatile int leftCompensate;
 volatile int neg;
 
-void go() {
+void go(int stopConditon) {
   leftEmpty = 0; // number of empty space on the left
   while (1) {
     // correct();
     correctPosition();
-    // correct();
 
     disL = smooth21(leftHeadPin) - 8;
     disFL = smooth21(leftFrontPin) - 10;
@@ -90,12 +89,10 @@ void go() {
 
     if (leftEmpty == 3) {
       leftEmpty = 0;
-      // rotateLeft90speedX00(1);
-      // rotateLeft3(2);
       rotateLeft4(1);
-      // correct();
+      correct();
       goAhead4(1);
-      // correct();
+      correct();
       
       Serial.println('L');
       Serial.println("G1");
@@ -103,10 +100,8 @@ void go() {
     }
 
     if (disFL < 10 || disFR < 10 || disFM < 10) {
-      // rotateLeft90speedX00(-1);
       rotateLeft4(-1);
-      // rotateLeft3(-2);
-      // correct();
+      correct();
 
       Serial.println('R');
 
@@ -116,12 +111,16 @@ void go() {
       continue;
     }
     goAhead4(1);
-    // correct();
+    correct();
     Serial.println("G1");
-    // if (curPos[0] == goalX && curPos[1] == goalY)
-    //   break;
-    // if (Serial.available() && Serial.read() == 'S')
-    //   break;
+
+    if (stopConditon == 0) {
+      if (curPos[0] > goalX - 2 && curPos[1] > goalY - 2)
+        break;
+    } else {
+      if (Serial.available() && Serial.read() == 'S')
+        break;
+    }
   }
 }
 
@@ -133,24 +132,9 @@ void correct() {
   int temp2;
   int spe = 100;
 
-  // Serial.println("======correct: ");
-  // Serial.print("des: ");
-  // Serial.println(des);
-  // Serial.print("before : ");
-  // Serial.println(now);
-
   temp  = des - now;
   delta = abs(temp);
   temp2 = 360 - delta;
-
-  // if (getDir(now, des))
-  //   des = (des - min(delta, temp2) / 2 + 360) % 360;
-  // else
-  //   des = (des + min(delta, temp2) / 2 + 360) % 360;
-
-  // temp  = des - now;
-  // delta = abs(temp);
-  // temp2 = 360 - delta;
 
   if (getDir(now, des))
     md.setSpeeds(spe, -spe);
@@ -168,8 +152,7 @@ void correct() {
     else 
       md.setSpeeds(-spe, spe);
   }
-  // Serial.print("after : ");
-  // Serial.println(now);
+
   md.setBrakes(400, 400);
 }
 void correct2() {
@@ -215,20 +198,21 @@ bool getDir(int now, int des) {
   return des < 180;
 }
 void correctPosition() {
-  int front = PWM_Mode_getDis() - 1;
-  // int front = getDis21(leftHeadPin) - 10;
+  int front = -1;
+  while (front == -1)
+    front = PWM_Mode_getDis() - 1;
 
   if (front > 10)
     return ;
 
-  while (front != 5 && front != 6) {   
+  // while (front != 5 && front != 6) {
+  while (front != 5) {   
     if (front < 5)
       md.setSpeeds(-100, -100);
-    else if (front > 6)
+    // else if (front > 5)
+    else
       md.setSpeeds(100, 100);
-    // delay(10);
     front = PWM_Mode_getDis() - 1;
-    // front = getDis21(leftHeadPin) - 10;
   }
   md.setBrakes(400, 400);
 }
@@ -244,14 +228,25 @@ void setup() {
   setCompass();
   // setPID();
 
-  // storeDirectionByRotation();
-  // correct();
+  // while (!Serial.available() || Serial.read() != 'S');
+  while (1) {
+    if (Serial.available())
+      if (Serial.read() == 'S')
+        break;
+  }
 
-  go();
-  // while (Nnow != 0)
-    // rotateLeft3(1);
-  // correct();
-
+  storeDirectionByRotation();
+  correct();
+  
+  go(1);
+  // while (!Serial.available() || Serial.read() != 'S');
+  while (1) {
+    if (Serial.available())
+      if (Serial.read() == 'S')
+        break;
+  }
+  curPos[0] = curPos[1] = 2;
+  go(0);
   // pcMode();
 }
 void loop() {
@@ -274,8 +269,7 @@ void loop() {
   // Serial.println("right: " + String(analogRead(rightFrontPin), DEC));
   // rotateLeft4(1);
   // correctPosition();
-  // rotateLeft4(-1);
-  // delay(750);
+  // delay(350);
   // driftLeft();
 }
 
@@ -294,14 +288,14 @@ void storeDirectionByRotation() {
   delay(100);
   N[0] = (N[0] + getHeading()) / 2;
   for (int i = 1; i < 4; i++) {
-    rotateLeft90speedX00(-1);
+    rotateLeft4(-1);
     delay(500);
     N[i*2] = getHeading();
     Serial.print("N");
     Serial.println(N[i*2]);
     delay(500);
   }
-  rotateLeft90speedX00(-1);
+  rotateLeft4(-1);
 }
 void setCompass() {
   compass = HMC5883L();
@@ -401,21 +395,6 @@ int getHeading() {
   return heading * 180.0 / PI; // change M_PI to PI <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
-// void rotateLeft360(int times) {
-//   int neg = 1;
-//   if (times < 0) neg = -1;
-//   int need = times * one360speed150 * neg;
-
-//   md.setSpeeds(-150 * neg, 150 * neg);
-//   while (need--) {
-//     while (digitalRead(enLeftPin));
-//     while (!digitalRead(enLeftPin));
-//   }
-
-//   md.setSpeeds(100 * neg, -100 * neg); // brake compensate // try
-//   delay(50);
-//   md.setBrakes(400, 400);
-// }
 void rotateLeft90speedX00(int times) {
   int neg = 1;
   if (times < 0) neg = -1;
@@ -452,15 +431,7 @@ void rotateLeft4(int times) {
   enRight = enLeft;
   leftCompensate = 0;
 
-  Nnow = (Nnow - times + 8) % 8;
-
-  // Serial.println("==============begin: ");
-  // Serial.print("enLeft: ");
-  // Serial.println(enLeft);
-  // Serial.print("enRight: ");
-  // Serial.println(enRight);
-  // Serial.print("leftCompensate: ");
-  // Serial.println(leftCompensate);
+  Nnow = (Nnow - 2 * times + 16) % 8;
 
   setTimerInterrupt();
   attachInterrupt(1, countRight, RISING);
@@ -475,14 +446,6 @@ void rotateLeft4(int times) {
   detachInterrupt(1);
   detachTimerInterrupt();
   md.setBrakes(400, 400);
-
-  // Serial.println("==============end  : ");
-  // Serial.print("enLeft: ");
-  // Serial.println(enLeft);
-  // Serial.print("enRight: ");
-  // Serial.println(enRight);
-  // Serial.print("leftCompensate: ");
-  // Serial.println(leftCompensate);
 }
 void goAhead3(int grid) {
   int neg = 1;
@@ -591,6 +554,7 @@ ISR(TIMER1_COMPA_vect) {
   // md.setSpeeds(200 + 3 * leftCompensate, 200);
   // md.setM1Speed(200 + 50 * leftCompensate);  // working <---------------
   md.setM1Speed((200 + leftCompensate) * neg); // need test <---------
+  // md.setSpeeds(neg * (min(enLeft * 5, 200) + leftCompensate), neg * min(enLeft * 5, 200))
 }
 
 int smooth21(int pin) {
@@ -628,7 +592,7 @@ int smooth02(int pin) {
 
 void driftLeft() {
   neg = 1;
-  enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.5 - 35; // degree to rotate
+  enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35; // degree to rotate
   enRight = 1.9 * enLeft;
   leftCompensate = 0;
 
@@ -647,60 +611,71 @@ void driftLeft() {
   md.setBrakes(400, 400);
 }
 
-void checklistA1() {
-  // disable "storeDirection"
-  padMode();
-}
-void checklistA2() {
-  // disable "storeDirection"
-  while (1) {
-    Serial.print("distance: ");
-    Serial.println(PWM_Mode_getDis());
-    delay(250);
-  }
-}
-void checklistA3() {
-  // disable "storeDirection"
-  goAhead4(10);
-}
-void checklistA4() {
-  // disable "storeDirection"
-  Nnow = 0;
-  int degree = 1080;
-  int quarter = degree % 90;
-  for (int i = 0; i < quarter; i++) {
-    rotateLeft4(1);
-    if (Nnow == 0)
-      correct();
-  }
-}
-void checklistA5() {
-  // disable "storeDirection"
-  Nnow = 0;
-  N[Nnow] = getHeading();
-  for (int x = 0; x < 2; x++) {
-      for (int i = 0; i < 15; i++) {
-        if (PWM_Mode_getDis() > 10) {
-          goAhead4(1);
-          correct();
-        } else {
-          rotateLeft4(1);
-          goAhead4(3);
-          rotateLeft4(-1);
-          goAhead4(4);
-          rotateLeft4(-1);
-          goAhead4(3);
-          rotateLeft4(1);
-          i -= 3;
+// void checklistA1() {
+//   // disable "storeDirection"
+//   padMode();
+// }
+// void checklistA2() {
+//   // disable "storeDirection"
+//   while (1) {
+//     Serial.print("distance: ");
+//     Serial.println(PWM_Mode_getDis());
+//     delay(250);
+//   }
+// }
+// void checklistA3() {
+//   // disable "storeDirection"
+//   goAhead4(10);
+// }
+// void checklistA4() {
+//   // disable "storeDirection"
+//   Nnow = 0;
+//   N[0] = getHeading();
+//   int degree = 180;
+//   int times = degree / 90;
+//   for (int i = 0; i < times; i++) {
+//     rotateLeft4(1);
+//     if (Nnow == 0)
+//       correct();
+//   }
+// }
+// void checklistA5() {
+//   // disable "storeDirection"
+//   Nnow = 0;
+//   N[Nnow] = getHeading();
+//   for (int x = 0; x < 2; x++) {
+//     for (int i = 0; i < 15; i++) {
+//       // delay(200);
+//       int disFM = -1;
+//       while (disFM == -1) {
+//         disFM = PWM_Mode_getDis() - 1;
+//       }
+//       if (disFM > 10) {
+//         goAhead4(1);
+//         correct();
+//       } else {
+//         rotateLeft4(1);
+//         goAhead4(3);
+//         rotateLeft4(-1);
+//         goAhead4(4);
+//         rotateLeft4(-1);
+//         goAhead4(3);
+//         rotateLeft4(1);
+//         i += 3;
 
-          correct();
-        }
-      }
-      rotateLeft4(2);
-      N[Nnow] = getHeading();
-  }
-}
-void checklistA6() {
-  // disable "storeDirection"
-  driftLeft();
-}
+//         correct();
+//       }
+//     }
+//     delay(300);
+//     rotateLeft4(1);
+//     rotateLeft4(1);
+//     delay(300);
+//     N[Nnow] = getHeading();
+//   }
+// }
+// void checklistA6() {
+//   // disable "storeDirection"
+//   goAhead4(1);
+//   driftLeft();
+//   goAhead4(1);
+// }
