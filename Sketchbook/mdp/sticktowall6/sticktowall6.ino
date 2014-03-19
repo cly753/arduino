@@ -1,5 +1,9 @@
-// complete sticktowall
-// add timer interrupt
+// to do
+// 0. test parameter for goAhead, rotation, brake
+// -. global goAhead(use front & left sensor)/rotation PID ?
+// 1. watchdog timer
+// 2. disable compass
+// 3. go diagonally
 
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
@@ -10,11 +14,12 @@
 
 #define oneGridspeed150 290 // ?
 #define oneGridInterruptspeed200 291 // ?
-// #define oneGridInterruptspeed200inHall 294 // ?
+// #define oneGridInterruptspeed200 285 // software project lab
 
 // #define one360speed150 1600
-#define one90speed150 390
-#define one90speed200 394
+#define one90speed150 380
+#define one90speed200 392
+// #define one90speed200 380 // software project lab
 #define one90speed300 390 // ? 
 #define one90speed400 380
 
@@ -27,14 +32,14 @@
 
 #define urPWM 13
 #define urTRIG 5
-#define leftHeadPin 17
-#define leftFrontPin 16
-#define rightFrontPin 15
-#define rearPin 14
+#define leftHeadPin A3
+#define leftFrontPin A2
+#define rightFrontPin A1 
+#define rearPin A0
 #define enLeftPin 11
 #define enRightPin 3
 
-#define goalX 19
+#define goalX 9
 #define goalY 14
 
 DualVNH5019MotorShield md;
@@ -42,7 +47,7 @@ HMC5883L compass;
 // double input, output, target;
 // PID pid(&input, &output, &target, 4, 1, 0, DIRECT);
 
-int curPos[2];
+int curPos[2]; // [0]: X, [1]: Y
 int leftEmpty;
 
 int N[8];
@@ -60,6 +65,7 @@ volatile int enLeft;
 volatile int enRight;
 volatile int leftCompensate;
 volatile int neg;
+volatile int negRight;
 
 void go(int stopConditon) {
   leftEmpty = 0; // number of empty space on the left
@@ -69,11 +75,11 @@ void go(int stopConditon) {
 
     disL = smooth21(leftHeadPin) - 8;
     disFL = smooth21(leftFrontPin) - 10;
-    disFR = smooth21(rightFrontPin) - 10;
-    disR = smooth02(rearPin) - 16;
     disFM = -1;
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
+    disFR = smooth21(rightFrontPin) - 10;
+    disR = smooth02(rearPin) - 16;
 
     Serial.println("================");
     Serial.println("SL" + String(disL, DEC));
@@ -116,7 +122,7 @@ void go(int stopConditon) {
 
     if (stopConditon == 0) {
       if (curPos[0] > goalX - 2 && curPos[1] > goalY - 2)
-        break;
+        break;  
     } else {
       if (Serial.available() && Serial.read() == 'S')
         break;
@@ -216,7 +222,7 @@ void correctPosition() {
   }
   md.setBrakes(400, 400);
 }
-void correctToGoalArea() {
+void correctToGoal() {
   for (int i = 0; i < 3; i++) {
     if (Nnow == 0) // current direction
       rotateLeft4(-1);
@@ -226,22 +232,22 @@ void correctToGoalArea() {
     correct();
 
     disFL = smooth21(leftFrontPin) - 10;
-    disFR = smooth21(rightFrontPin) - 10;
     disFM = -1;
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
+    disFR = smooth21(rightFrontPin) - 10;
 
-    while (disFL >  10 && disFM > 10 && disFR > 10)
-      md.setSpeeds(200, 200);
+    while (disFL >  5 && disFM > 5 && disFR > 5)
+      md.setSpeeds(150, 150);
     md.setBrakes(400, 400);
   }
+  curPos[0] = goalX;
+  curPos[1] = goalY;
 }
 
 void setup() {
-  delay(1000);
   Serial.begin(9600);
-  pinMode(enLeftPin, INPUT);
-  pinMode(enRightPin, INPUT);
+  setPins();
   Wire.begin();
   PWM_Mode_Setup();
   md.init();
@@ -249,50 +255,98 @@ void setup() {
   // setPID();
 
   // while (!Serial.available() || Serial.read() != 'S');
-  while (1) {
-    if (Serial.available())
-      if (Serial.read() == 'S')
-        break;
-  }
-
-  storeDirectionByRotation();
-  correct();
-  
-  go(1);
-  // while (!Serial.available() || Serial.read() != 'S');
-  while (1) {
-    if (Serial.available())
-      if (Serial.read() == 'S')
-        break;
-  }
-  curPos[0] = curPos[1] = 2;
-  go(0);
-  // pcMode();
-}
-void loop() {
-  // Serial.println("==========");
-  // disL = smooth21(leftHeadPin) - 8;
-  // disFL = smooth21(leftFrontPin) - 10;
-  // disFR = smooth21(rightFrontPin) - 10;
-  // disR = smooth02(rearPin) - 16;
-  // disFM = -1;
-  // while (disFM == -1) {
-  //   disFM = PWM_Mode_getDis() - 1;
+  // while (1) {
+  //   if (Serial.available())
+  //     if (Serial.read() == 'S')
+  //       break;
   // }
 
-  // Serial.println("SL" + String(disL, DEC));
-  // Serial.println("SFL" + String(disFL, DEC));
-  // Serial.println("SFM" + String(disFM, DEC));
-  // Serial.println("SFR" + String(disFR, DEC));
+  // storeDirectionByRotation();
+  // correct();
+
+  // curPos[0] = curPos[1] = 2;
+  // go(0);
+
+  // delay(1000);
+
+  // curPos[0] = goalX - curPos[0] + 1;
+  // curPos[1] = goalY - curPos[1] + 1;
+  // go(0);
+
+  // // while (!Serial.available() || Serial.read() != 'S');
+  // while (1) {
+  //   if (Serial.available())
+  //     if (Serial.read() == 'S')
+  //       break;
+  // }
+
+  // curPos[0] = goalX - curPos[0] + 1;
+  // curPos[1] = goalY - curPos[1] + 1;
+  // go(0);
+
+  goAhead4(1);
+}
+void loop() {
+  Serial.println("==========");
+  disL = smooth21(leftHeadPin) - 8;
+  disFL = smooth21(leftFrontPin) - 10;
+  disFR = smooth21(rightFrontPin) - 10;
+  // disR = smooth02(rearPin) - 16;
+  disFM = -1;
+  while (disFM == -1)
+    disFM = PWM_Mode_getDis() - 1;
+
+  Serial.println("SL" + String(disL, DEC));
+  Serial.println("SFL" + String(disFL, DEC));
+  Serial.println("SFM" + String(disFM, DEC));
+  Serial.println("SFR" + String(disFR, DEC));
   // Serial.println("SR" + String(disR, DEC));
-  // Serial.println("left: " + String(analogRead(leftFrontPin), DEC));
-  // Serial.println("right: " + String(analogRead(rightFrontPin), DEC));
-  // rotateLeft4(1);
-  // correctPosition();
-  // delay(350);
-  // driftLeft();
+
+  // Serial.println("==========");
+
+  // disL = analogRead(leftHeadPin);
+  // Serial.println("ADC: " + String(disL, DEC));
+  // Serial.print("voltage: ");
+  // Serial.println(disL / 1024.0 * 5);
+  // Serial.print("SFR: ");
+  // Serial.print(12343.85 * pow(disL,-1.15));
+  // Serial.println("cm");
+
+  // disFL = analogRead(leftFrontPin);
+  // Serial.println("ADC: " + String(disFL, DEC));
+  // Serial.print("voltage: ");
+  // Serial.println(disFL / 1024.0 * 5);
+  // Serial.print("SFL: ");
+  // Serial.print(12343.85 * pow(disFL,-1.15));
+  // Serial.println("cm");
+  // Serial.println();
+
+  // disFR = analogRead(rightFrontPin);
+  // Serial.println("ADC: " + String(disFR, DEC));
+  // Serial.print("voltage: ");
+  // Serial.println(disFR / 1024.0 * 5);
+  // Serial.print("SFR: ");
+  // Serial.print(12343.85 * pow(disFR,-1.15));
+  // Serial.println("cm");
+
+  // disFM = PWM_Mode_getDis();
+  // Serial.print("SFM: ");
+  // Serial.print(disFM);
+  // Serial.println("cm");
+
+  delay(750);
 }
 
+void setPins() {
+  pinMode(enLeft, INPUT);
+  pinMode(enRight, INPUT);
+  pinMode(leftFrontPin, INPUT);
+  pinMode(rightFrontPin, INPUT);
+  pinMode(rearPin, INPUT);
+  
+  pinMode(urTRIG, OUTPUT);
+  pinMode(urPWM, INPUT);
+}
 void storeDirection() {
   delay(100);
   int now = getHeading();
@@ -465,7 +519,9 @@ void rotateLeft4(int times) {
   }
   detachInterrupt(1);
   detachTimerInterrupt();
+
   md.setBrakes(400, 400);
+  // brake();
 }
 void goAhead3(int grid) {
   int neg = 1;
@@ -514,29 +570,62 @@ void goAhead3(int grid) {
   // }
 }
 void goAhead4(int grid) {
-  neg = grid / abs(grid);
-  enLeft = oneGridInterruptspeed200 * abs(grid);
-  enRight = enLeft;
+  neg = 1;
+  negRight = 1;
+  enLeft = enRight = oneGridInterruptspeed200 * grid;
   leftCompensate = 0;
+
+  int pre = 0;
+  int cur = 0;
  
   setTimerInterrupt();
   attachInterrupt(1, countRight, RISING);
+
   md.init(); // =================================================???
-
-  md.setSpeeds(200 * neg, 200 * neg);
-
+  md.setSpeeds(200, 200);
   while (enLeft--) {
-    while (digitalRead(enLeftPin));
-    while (!digitalRead(enLeftPin));
+    while (digitalRead(enLeftPin)); // change to catch the posedge
+
+    // if (enLeft % 100)
+    //   md.setM1Speed((200 + leftCompensate) * neg);
+
+    while (!digitalRead(enLeftPin)); // change to catch the posedge
+
+    // while (!(!pre & cur)) {
+    //   pre = digitalRead(enLeftPin);
+    //   delay(1);
+    //   cur = digitalRead(enLeftPin);
+    // }
+    // pre = 1;
   }
+
   detachInterrupt(1);
   detachTimerInterrupt();
+
   md.setBrakes(400, 400);
+  // brake();
+
+  Serial.println("=============");
+  Serial.println("enLeft : " + String(enLeft));
+  Serial.println("enRight: " + String(enRight));
+  Serial.println("leftCompensate: " + String(leftCompensate));
 
   if (Nnow == 0) curPos[0]++;
   if (Nnow == 2) curPos[1]++;
   if (Nnow == 4) curPos[0]--;
   if (Nnow == 6) curPos[1]--;
+}
+void brake() {
+  // for (int i = 0; i <= 400; i += 20){
+  //   delay(2);
+  //   md.setBrakes(i, i);
+  // }
+  for (int i = 0; i < 50; i++) { // ABS...-  -
+    delay(1);
+    md.setBrakes(275, 275);
+    delay(1);
+    md.setBrakes(400, 400);
+  }
 }
 
 void countRight() {
@@ -555,7 +644,7 @@ void setTimerInterrupt() {
   TCCR1B = 0;     // same for TCCR1B
 
   // set compare match register to desired timer count:
-  OCR1A = 3124; // scale = 1024, so OCR1A = (xxx * 10^8 / 6.25 / 1024)
+  OCR1A = 1513; // scale = 1024, so OCR1A = (xxx * 10^8 / 6.25 / 1024) // 3124
   // turn on CTC mode:
   TCCR1B |= (1 << WGM12);
   // Set CS10 and CS12 bits for 1024 prescaler:
@@ -571,10 +660,8 @@ void detachTimerInterrupt() {
   sei();
 }
 ISR(TIMER1_COMPA_vect) {
-  // md.setSpeeds(200 + 3 * leftCompensate, 200);
-  // md.setM1Speed(200 + 50 * leftCompensate);  // working <---------------
   md.setM1Speed((200 + leftCompensate) * neg); // need test <---------
-  // md.setSpeeds(neg * (min(enLeft * 5, 200) + leftCompensate), neg * min(enLeft * 5, 200))
+  // md.setSpeeds(200, 200);
 }
 
 int smooth21(int pin) {
@@ -630,72 +717,3 @@ void driftLeft() {
   detachTimerInterrupt();
   md.setBrakes(400, 400);
 }
-
-// void checklistA1() {
-//   // disable "storeDirection"
-//   padMode();
-// }
-// void checklistA2() {
-//   // disable "storeDirection"
-//   while (1) {
-//     Serial.print("distance: ");
-//     Serial.println(PWM_Mode_getDis());
-//     delay(250);
-//   }
-// }
-// void checklistA3() {
-//   // disable "storeDirection"
-//   goAhead4(10);
-// }
-// void checklistA4() {
-//   // disable "storeDirection"
-//   Nnow = 0;
-//   N[0] = getHeading();
-//   int degree = 180;
-//   int times = degree / 90;
-//   for (int i = 0; i < times; i++) {
-//     rotateLeft4(1);
-//     if (Nnow == 0)
-//       correct();
-//   }
-// }
-// void checklistA5() {
-//   // disable "storeDirection"
-//   Nnow = 0;
-//   N[Nnow] = getHeading();
-//   for (int x = 0; x < 2; x++) {
-//     for (int i = 0; i < 15; i++) {
-//       // delay(200);
-//       int disFM = -1;
-//       while (disFM == -1) {
-//         disFM = PWM_Mode_getDis() - 1;
-//       }
-//       if (disFM > 10) {
-//         goAhead4(1);
-//         correct();
-//       } else {
-//         rotateLeft4(1);
-//         goAhead4(3);
-//         rotateLeft4(-1);
-//         goAhead4(4);
-//         rotateLeft4(-1);
-//         goAhead4(3);
-//         rotateLeft4(1);
-//         i += 3;
-
-//         correct();
-//       }
-//     }
-//     delay(300);
-//     rotateLeft4(1);
-//     rotateLeft4(1);
-//     delay(300);
-//     N[Nnow] = getHeading();
-//   }
-// }
-// void checklistA6() {
-//   // disable "storeDirection"
-//   goAhead4(1);
-//   driftLeft();
-//   goAhead4(1);
-// }

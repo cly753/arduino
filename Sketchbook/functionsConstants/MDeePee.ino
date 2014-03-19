@@ -353,3 +353,72 @@ void setCompassOffset() {
 // raise the direction of ultrasonic if placed vertical
 
 // function to get performance of motor with same speed
+
+void checklistA1() {
+  // disable "storeDirection"
+  padMode();
+}
+void checklistA2() {
+  // disable "storeDirection"
+  while (1) {
+    Serial.print("distance: ");
+    Serial.println(PWM_Mode_getDis());
+    delay(250);
+  }
+}
+void checklistA3() {
+  // disable "storeDirection"
+  goAhead4(10);
+}
+void checklistA4() {
+  // disable "storeDirection"
+  Nnow = 0;
+  N[0] = getHeading();
+  int degree = 180;
+  int times = degree / 90;
+  for (int i = 0; i < times; i++) {
+    rotateLeft4(1);
+    if (Nnow == 0)
+      correct();
+  }
+}
+void checklistA5() {
+  // disable "storeDirection"
+  Nnow = 0;
+  N[Nnow] = getHeading();
+  for (int x = 0; x < 2; x++) {
+    for (int i = 0; i < 15; i++) {
+      // delay(200);
+      int disFM = -1;
+      while (disFM == -1) {
+        disFM = PWM_Mode_getDis() - 1;
+      }
+      if (disFM > 10) {
+        goAhead4(1);
+        correct();
+      } else {
+        rotateLeft4(1);
+        goAhead4(3);
+        rotateLeft4(-1);
+        goAhead4(4);
+        rotateLeft4(-1);
+        goAhead4(3);
+        rotateLeft4(1);
+        i += 3;
+
+        correct();
+      }
+    }
+    delay(300);
+    rotateLeft4(1);
+    rotateLeft4(1);
+    delay(300);
+    N[Nnow] = getHeading();
+  }
+}
+void checklistA6() {
+  // disable "storeDirection"
+  goAhead4(1);
+  driftLeft();
+  goAhead4(1);
+}

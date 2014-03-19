@@ -57,7 +57,7 @@ void loop() {
 
     Serial.print("center: ");
     Serial.print(getDisus());
-    Serial.println("cm\n");
-    delay(500);
+    Serial.println("cm");
+    delay(200);
 }
 
