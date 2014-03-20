@@ -10,21 +10,20 @@
 #include <HMC5883L.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
 // #include <PID_v1.h>
 
 #define oneGridspeed150 290 // ?
-#define oneGridInterruptspeed200 291 // ?
-// #define oneGridInterruptspeed200 285 // software project lab
+#define oneGridInterruptspeed200 288 // ?
 
 // #define one360speed150 1600
 #define one90speed150 380
-#define one90speed200 392
-// #define one90speed200 380 // software project lab
+#define one90speed200 387
 #define one90speed300 390 // ? 
 #define one90speed400 380
 
-#define one90Interruptspeed200 397
-#define one90ToRightInterruptspeed200 397
+#define one90Interruptspeed200 394
+#define one90ToRightInterruptspeed200 390
 
 #define leftCompensate350 18 // ?
 #define leftCompensate250 5
@@ -39,7 +38,10 @@
 #define enLeftPin 11
 #define enRightPin 3
 
-#define goalX 9
+#define frontThreshold 280
+#define sideThreshold 300
+
+#define goalX 19
 #define goalY 14
 
 DualVNH5019MotorShield md;
@@ -48,6 +50,8 @@ HMC5883L compass;
 // PID pid(&input, &output, &target, 4, 1, 0, DIRECT);
 
 int curPos[2]; // [0]: X, [1]: Y
+// int goalX;
+// int goalY;
 int leftEmpty;
 
 int N[8];
@@ -58,6 +62,8 @@ int disFR;
 int disFM;
 int disL;
 int disR;
+
+int pause;
 
 int cmd;
 
@@ -127,6 +133,145 @@ void go(int stopConditon) {
       if (Serial.available() && Serial.read() == 'S')
         break;
     }
+  }
+}
+void go2() {
+  leftEmpty = 0; // number of empty space on the left
+  while (1) {
+    // while (!Serial.available() || Serial.read() != 'S');
+    // correct();
+    correctPosition();
+
+    pause = 50;
+
+    delay(pause);
+    disL = analogRead(leftHeadPin);
+    delay(pause);
+    disFL = analogRead(leftFrontPin);
+    delay(pause);
+    disFM = -1;
+    while (disFM == -1)
+      disFM = PWM_Mode_getDis() - 1;
+    delay(pause);
+    disFR = analogRead(rightFrontPin);
+
+    Serial.println("================");
+    Serial.println("SL" + String(disL, DEC));
+    Serial.println("SFL" + String(disFL, DEC));
+    Serial.println("SFM" + String(disFM, DEC));
+    Serial.println("SFR" + String(disFR, DEC));
+
+    if (disL < sideThreshold)
+      leftEmpty++;
+    else
+      leftEmpty = 0;
+
+    if (leftEmpty == 3) {
+      leftEmpty = 0;
+      rotateLeft4(1);
+      correct();
+      goAhead4(1);
+      correct();
+      
+      Serial.println('L');
+      Serial.println("G1");
+      continue;
+    }
+
+    if (disFL > frontThreshold || disFR > frontThreshold || disFM < 10) {
+      rotateLeft4(-1);
+      correct();
+
+      Serial.println('R');
+
+      leftEmpty = 0;
+      if (disFR < frontThreshold && disFM > 10)
+        leftEmpty = 1;
+      continue;
+    }
+    goAhead4(1);
+    correct();
+    Serial.println("G1");
+
+    if (curPos[0] >= goalX - 1 && curPos[1] >= goalY - 1)
+      break;  
+  }
+}
+void go3() {
+  leftEmpty = 0; // number of empty space on the left
+  while (1) {
+    // while (!Serial.available() || Serial.read() != 'S');
+    // correct();
+    correctPosition();
+
+    Serial.println("================x, y");
+    Serial.print(curPos[0]);
+    Serial.print(", ");
+    Serial.println(curPos[1]);
+
+    if (curPos[0] == 19 && Nnow == 0){
+      rotateLeft4(-1); 
+      continue;
+    }
+
+    if (curPos[1] == 2 && Nnow == 6) {
+      rotateLeft4(-1);
+      continue;
+    }
+
+    pause = 50;
+
+    delay(pause);
+    disL = analogRead(leftHeadPin);
+    delay(pause);
+    disFL = analogRead(leftFrontPin);
+    delay(pause);
+    disFM = -1;
+    while (disFM == -1)
+      disFM = PWM_Mode_getDis() - 1;
+    delay(pause);
+    disFR = analogRead(rightFrontPin);
+
+    Serial.println("================");
+    Serial.println("SL" + String(disL, DEC));
+    Serial.println("SFL" + String(disFL, DEC));
+    Serial.println("SFM" + String(disFM, DEC));
+    Serial.println("SFR" + String(disFR, DEC));
+
+    if (disL < sideThreshold)
+      leftEmpty++;
+    else
+      leftEmpty = 0;
+
+    if (leftEmpty == 3) {
+      leftEmpty = 0;
+      rotateLeft4(1);
+      correct();
+      goAhead4(1);
+      correct();
+      
+      Serial.println('L');
+      Serial.println("G1");
+      continue;
+    }
+
+    if (disFL > frontThreshold || disFR > frontThreshold || disFM < 10) {
+      rotateLeft4(-1);
+      correct();
+
+      Serial.println('R');
+
+      leftEmpty = 0;
+      if (disFR < frontThreshold && disFM > 10)
+        leftEmpty = 1;
+      continue;
+    }
+    goAhead4(1);
+    correct();
+    Serial.println("G1");
+
+    if (curPos[0] >= goalX - 1 && curPos[1] >= goalY - 1)
+      break;  
   }
 }
 
@@ -224,22 +369,36 @@ void correctPosition() {
 }
 void correctToGoal() {
   for (int i = 0; i < 3; i++) {
-    if (Nnow == 0) // current direction
-      rotateLeft4(-1);
-    else
-      rotateLeft4(1);
-
     correct();
 
-    disFL = smooth21(leftFrontPin) - 10;
+    delay(100);
+    disFL = analogRead(leftFrontPin);
+    delay(100);
     disFM = -1;
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
-    disFR = smooth21(rightFrontPin) - 10;
+    delay(100);
+    disFR = analogRead(rightFrontPin);
 
-    while (disFL >  5 && disFM > 5 && disFR > 5)
-      md.setSpeeds(150, 150);
-    md.setBrakes(400, 400);
+    if (disFL < 280 && disFM > 10 && disFR < 280) {
+      goAhead4(1);
+    }
+
+    correctPosition();
+
+    if (Nnow == 0) {
+      rotateLeft4(-1);
+    } else {
+      rotateLeft4(1);
+    }
+  }
+
+  correctPosition();
+
+  while (Nnow != 4) {
+    rotateLeft4(1);
+    correct();
+    delay(100);
   }
   curPos[0] = goalX;
   curPos[1] = goalY;
@@ -255,52 +414,46 @@ void setup() {
   // setPID();
 
   // while (!Serial.available() || Serial.read() != 'S');
-  // while (1) {
-  //   if (Serial.available())
-  //     if (Serial.read() == 'S')
-  //       break;
-  // }
 
-  // storeDirectionByRotation();
-  // correct();
+  storeDirectionByRotation();
+  correct();
 
-  // curPos[0] = curPos[1] = 2;
-  // go(0);
+  curPos[0] = curPos[1] = 2;
+  go2();
 
-  // delay(1000);
+  correctToGoal();
+  delay(1000);
 
-  // curPos[0] = goalX - curPos[0] + 1;
-  // curPos[1] = goalY - curPos[1] + 1;
-  // go(0);
+  curPos[0] = curPos[1] = 2;
+  Nnow = (Nnow + 4) % 8; // == 0
+  go2();
+  correctToGoal();
 
-  // // while (!Serial.available() || Serial.read() != 'S');
-  // while (1) {
-  //   if (Serial.available())
-  //     if (Serial.read() == 'S')
-  //       break;
-  // }
+  while (!Serial.available() || Serial.read() != 'S');
 
-  // curPos[0] = goalX - curPos[0] + 1;
-  // curPos[1] = goalY - curPos[1] + 1;
-  // go(0);
-
-  goAhead4(1);
+  curPos[0] = curPos[1] = 2;
+  Nnow = (Nnow + 4) % 8; // == 0
+  go3();
+  correctToGoal();
 }
 void loop() {
-  Serial.println("==========");
-  disL = smooth21(leftHeadPin) - 8;
-  disFL = smooth21(leftFrontPin) - 10;
-  disFR = smooth21(rightFrontPin) - 10;
+  // Serial.println("==========");
+  // disL = smooth21(leftHeadPin) - 8;
+  // disFL = smooth21(leftFrontPin) - 10;
+  // disFR = smooth21(rightFrontPin) - 10;
   // disR = smooth02(rearPin) - 16;
-  disFM = -1;
-  while (disFM == -1)
-    disFM = PWM_Mode_getDis() - 1;
+  // disFM = -1;
+  // while (disFM == -1)
+  //   disFM = PWM_Mode_getDis() - 1;
 
-  Serial.println("SL" + String(disL, DEC));
-  Serial.println("SFL" + String(disFL, DEC));
-  Serial.println("SFM" + String(disFM, DEC));
-  Serial.println("SFR" + String(disFR, DEC));
+  // Serial.println("SL" + String(disL, DEC));
+  // Serial.println("SFL" + String(disFL, DEC));
+  // Serial.println("SFM" + String(disFM, DEC));
+  // Serial.println("SFR" + String(disFR, DEC));
   // Serial.println("SR" + String(disR, DEC));
+  // Serial.print(disFM);
+  // Serial.print(" ");
+  // Serial.println(analogRead(leftHeadPin));
 
   // Serial.println("==========");
 
@@ -334,7 +487,7 @@ void loop() {
   // Serial.print(disFM);
   // Serial.println("cm");
 
-  delay(750);
+  // delay(500);
 }
 
 void setPins() {
@@ -445,14 +598,26 @@ int getDis02(int pin) { // big
 
     return 30431 * pow(analogRead(pin), -1.169);
 }
-bool isEmpty21(int pin) {
+// bool isEmpty21front(int pin) {
+//   int ana = analogRead(pin);
+//   Serial.print(pin);
+//   Serial.print(" ");
+//   Serial.println(ana);
 
-  return analogRead(pin) < 267;
-}
-bool isEmpty02(int pin) {
+//   return ana < 280;
+// }
+// bool isEmpty21side(int pin) {
+//   int ana = analogRead(pin);
+//   Serial.print(pin);
+//   Serial.print(" ");
+//   Serial.println(ana);
 
-  // return analogRead(pin) < ;
-}
+//   return ana < 400;
+// }
+// bool isEmpty02(int pin) {
+
+//   // return analogRead(pin) < ;
+// }
 int getHeading() {
   // MagnetometerScaled scaled = compass.ReadScaledAxis();
   // float heading = atan2(scaled.YAxis + 2, scaled.XAxis + 105);
