@@ -1,6 +1,7 @@
 // to do
-// 0. test parameter for goAhead, rotation, brake
-// -. global goAhead(use front & left sensor)/rotation PID ?
+// -2. resolder compass
+// -1. test correctToGoal
+// 0. test parameter for brake
 // 1. watchdog timer
 // 2. disable compass
 // 3. go diagonally
@@ -41,8 +42,8 @@
 #define frontThreshold 280
 #define sideThreshold 300
 
-#define goalX 19
-#define goalY 14
+// #define goalX 4 // 19
+// #define goalY 3 // 14
 
 DualVNH5019MotorShield md;
 HMC5883L compass;
@@ -50,8 +51,8 @@ HMC5883L compass;
 // PID pid(&input, &output, &target, 4, 1, 0, DIRECT);
 
 int curPos[2]; // [0]: X, [1]: Y
-// int goalX;
-// int goalY;
+int goalX;
+int goalY;
 int leftEmpty;
 
 int N[8];
@@ -193,7 +194,7 @@ void go2() {
     correct();
     Serial.println("G1");
 
-    if (curPos[0] >= goalX - 1 && curPos[1] >= goalY - 1)
+    if (curPos[0] >= goalX - 1 && goalX + 1 >= curPos[0] && curPos[1] >= goalY - 1 && goalY + 1 >= curPos[1])
       break;  
   }
 }
@@ -270,7 +271,7 @@ void go3() {
     correct();
     Serial.println("G1");
 
-    if (curPos[0] >= goalX - 1 && curPos[1] >= goalY - 1)
+    if (curPos[0] >= goalX - 1 && goalX + 1 >= curPos[0] && curPos[1] >= goalY - 1 && goalY + 1 >= curPos[1])
       break;  
   }
 }
@@ -350,17 +351,16 @@ bool getDir(int now, int des) {
 }
 void correctPosition() {
   int front = -1;
+  delay(50);
   while (front == -1)
     front = PWM_Mode_getDis() - 1;
 
   if (front > 10)
     return ;
 
-  // while (front != 5 && front != 6) {
   while (front != 5) {   
     if (front < 5)
       md.setSpeeds(-100, -100);
-    // else if (front > 5)
     else
       md.setSpeeds(100, 100);
     front = PWM_Mode_getDis() - 1;
@@ -378,6 +378,8 @@ void correctToGoal() {
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
     delay(100);
+    disFM = (PWM_Mode_getDis() - 1 + disFM) / 2;
+    delay(100);
     disFR = analogRead(rightFrontPin);
 
     if (disFL < 280 && disFM > 10 && disFR < 280) {
@@ -386,20 +388,29 @@ void correctToGoal() {
 
     correctPosition();
 
-    if (Nnow == 0) {
+    if (Nnow == 0 || Nnow == 4) {
       rotateLeft4(-1);
     } else {
       rotateLeft4(1);
-    }
+    } 
   }
 
   correctPosition();
 
-  while (Nnow != 4) {
-    rotateLeft4(1);
-    correct();
-    delay(100);
+  if (Nnow == 0 || Nnow == 2) {
+    while (Nnow != 4) {
+      rotateLeft4(1);
+      correct();
+      delay(100);
+    }
+  } else {
+    while (Nnow != 0) {
+      rotateLeft4(1);
+      correct();
+      delay(100);
+    }
   }
+
   curPos[0] = goalX;
   curPos[1] = goalY;
 }
@@ -415,24 +426,31 @@ void setup() {
 
   // while (!Serial.available() || Serial.read() != 'S');
 
+
   storeDirectionByRotation();
   correct();
 
+  goalX = 19; // 19
+  goalY = 14; // 14
   curPos[0] = curPos[1] = 2;
   go2();
 
   correctToGoal();
-  delay(1000);
+  delay(3000);
 
-  curPos[0] = curPos[1] = 2;
-  Nnow = (Nnow + 4) % 8; // == 0
+  goalX = 2;
+  goalY = 2;
   go2();
+
+  delay(2000);
   correctToGoal();
 
-  while (!Serial.available() || Serial.read() != 'S');
+  // while (!Serial.available() || Serial.read() != 'S');
 
-  curPos[0] = curPos[1] = 2;
-  Nnow = (Nnow + 4) % 8; // == 0
+  delay(4000);
+
+  goalX = 19; // 19
+  goalY = 14; // 14
   go3();
   correctToGoal();
 }
