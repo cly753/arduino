@@ -1,12 +1,3 @@
-1. pid
-
-2. measure one grid
-
-3. test ultrasonic sensor
-
-4. rotateLeft slow down
-
-
 #include <Wire.h>
 #include <HMC5883L.h>
 #include <DualVNH5019MotorShield.h>
@@ -176,6 +167,20 @@ void goAhead3(float grid) {
   // }
 }
 
+void rotateLeft90speedX00(int times) {
+  int neg = 1;
+  if (times < 0) neg = -1;
+  int need = times * one90speed200 * neg;
+
+  Nnow = ((Nnow - 2 * times + 8) % 8 + 8) % 8;
+
+  md.setSpeeds(-200 * neg, 200 * neg);
+  while (need--) {
+    while (digitalRead(enLeftPin));
+    while (!digitalRead(enLeftPin));
+  }
+  md.setBrakes(400, 400);
+}
 void rotateLeft(int degree) { // require md, encoder left, encoder righ, 
   float neg = 1.0;
   if (degree < 0) neg = -1.0;
