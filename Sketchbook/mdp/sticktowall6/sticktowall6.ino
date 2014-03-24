@@ -1,8 +1,10 @@
 // to do
-// -2. resolder compass
+// -2. test rotation right after goAhead
 // -1. test G1 - G10
 // 0. drift
-// 1. global PID for goAhead and rotation!
+// 1. brake
+// 2. global PID for goAhead and rotation!
+
 
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
@@ -27,10 +29,8 @@
 #define leftCompensate250 5
 #define leftCompensate150 5
 
-#define urPWM0 13
-#define urTRIG0 5
-#define urPWM1 1
-#define urTRIG1 0
+#define urPWM 13
+#define urTRIG 5
 #define leftHeadPin A3
 #define leftFrontPin A2
 #define rightFrontPin A1 
@@ -40,6 +40,7 @@
 
 #define frontThreshold 350
 #define sideThreshold 300
+// right threshold: ---580---460---420
 
 #define driftRatio 1.9
 
@@ -84,7 +85,7 @@ void go(int stopConditon) {
     disFL = smooth21(leftFrontPin) - 10;
     disFM = -1;
     while (disFM == -1)
-      disFM = PWM_Mode_getDis(0) - 1;
+      disFM = PWM_Mode_getDis() - 1;
     disFR = smooth21(rightFrontPin) - 10;
     disR = smooth02(rearPin) - 16;
 
@@ -152,7 +153,7 @@ void go2() {
     delay(pause);
     disFM = -1;
     while (disFM == -1)
-      disFM = PWM_Mode_getDis(0) - 1;
+      disFM = PWM_Mode_getDis() - 1;
     delay(pause);
     disFR = analogRead(rightFrontPin);
 
@@ -229,7 +230,7 @@ void go3() {
     delay(pause);
     disFM = -1;
     while (disFM == -1)
-      disFM = PWM_Mode_getDis(0) - 1;
+      disFM = PWM_Mode_getDis() - 1;
     delay(pause);
     disFR = analogRead(rightFrontPin);
 
@@ -359,7 +360,7 @@ void correctPosition(int atGoal) {
   int front = -1;
   delay(50);
   while (front == -1)
-    front = PWM_Mode_getDis(0) - 1;
+    front = PWM_Mode_getDis() - 1;
 
   if (atGoal == 0)
     if (front > 10)
@@ -370,7 +371,7 @@ void correctPosition(int atGoal) {
       md.setSpeeds(-100, -100);
     else
       md.setSpeeds(100, 100);
-    front = PWM_Mode_getDis(0) - 1;
+    front = PWM_Mode_getDis() - 1;
   }
   md.setBrakes(400, 400);
 }
@@ -383,9 +384,9 @@ void correctToGoal() {
     delay(100);
     disFM = -1;
     while (disFM == -1)
-      disFM = PWM_Mode_getDis(0) - 1;
+      disFM = PWM_Mode_getDis() - 1;
     delay(100);
-    disFM = (PWM_Mode_getDis(0) - 1 + disFM) / 2;
+    disFM = (PWM_Mode_getDis() - 1 + disFM) / 2;
     delay(100);
     disFR = analogRead(rightFrontPin);
 
@@ -476,18 +477,18 @@ void loop() {
   // disFR = smooth21(rightFrontPin) - 10;
   // disR = smooth02(rearPin) - 16;
   // disFM = -1;
-  // while (disFM == -1)
-  //   disFM = PWM_Mode_getDis(0) - 1;
-  disRur = -1;
-  while (disRur == -1)
-    disRur = PWM_Mode_getDis(1) - 1;
+  // while (disFM == -1) {
+  //   disFM = PWM_Mode_getDis() - 1;
+  // }
 
   // Serial.println("SL" + String(disL, DEC));
   // Serial.println("SFL" + String(disFL, DEC));
   // Serial.println("SFM" + String(disFM, DEC));
   // Serial.println("SFR" + String(disFR, DEC));
   // Serial.println("SR" + String(disR, DEC));
-  Serial.println(disRur);
+
+  // Serial.println(disFM);
+  // Serial.println(disRur);
 
   // Serial.print(" ");
   // Serial.println(analogRead(leftHeadPin));
@@ -519,14 +520,14 @@ void loop() {
   // Serial.print(12343.85 * pow(disFR,-1.15));
   // Serial.println("cm");
 
-  // disFM = PWM_Mode_getDis(0);
+  // disFM = PWM_Mode_getDis();
   // Serial.print("SFM: ");
   // Serial.print(disFM);
   // Serial.println("cm");
 
   // Serial.print(getDis02(rearPin));
   // Serial.println("cm");
-  // Serial.println(analogRead(rearPin));
+  Serial.println(analogRead(rearPin));
   delay(500);
 }
 
@@ -537,10 +538,8 @@ void setPins() {
   pinMode(rightFrontPin, INPUT);
   pinMode(rearPin, INPUT);
   
-  pinMode(urTRIG0, OUTPUT);
-  pinMode(urPWM0, INPUT);
-  pinMode(urTRIG1, OUTPUT);
-  pinMode(urPWM1, INPUT);
+  pinMode(urTRIG, OUTPUT);
+  pinMode(urPWM, INPUT);
 }
 void storeDirection() {
   delay(100);
@@ -576,16 +575,9 @@ void setCompass() {
 //   pid.SetSampleTime(200); // ???
 // }
 void PWM_Mode_Setup() {
-  // pinMode(urTRIG0,OUTPUT);                     // A low pull on pin COMP/TRIG
-  // digitalWrite(urTRIG0,HIGH);                  // Set to HIGH
+  // pinMode(urTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
+  // digitalWrite(urTRIG,HIGH);                  // Set to HIGH
   // pinMode(urPWM0, INPUT);                      // Sending Enable PWM mode command
-  // uint8_t EnPwmCmd[4]={0x44,0x02,0xbb,0x01};
-  // for(int i=0;i<4;i++)
-  //     Serial.write(EnPwmCmd[i]);
-
-  // pinMode(urTRIG1,OUTPUT);                     // A low pull on pin COMP/TRIG
-  // digitalWrite(urTRIG1,HIGH);                  // Set to HIGH
-  // pinMode(urPWM1, INPUT);                      // Sending Enable PWM mode command
   // uint8_t EnPwmCmd[4]={0x44,0x02,0xbb,0x01};
   // for(int i=0;i<4;i++)
   //     Serial.write(EnPwmCmd[i]);
@@ -621,16 +613,10 @@ void pcMode() {
   }
 }
 
-int PWM_Mode_getDis(int no) {
-  if (no == 0) {
-    digitalWrite(urTRIG0, LOW);
-    digitalWrite(urTRIG0, HIGH);
-    return pulseIn(urPWM0, LOW) / 50;
-  } else {
-    digitalWrite(urTRIG1, LOW);
-    digitalWrite(urTRIG1, HIGH);
-    return pulseIn(urPWM1, LOW) / 50;
-  }
+int PWM_Mode_getDis() {
+  digitalWrite(urTRIG, LOW);
+  digitalWrite(urTRIG, HIGH);
+  return pulseIn(urPWM, LOW) / 50;
 }
 int getDis21(int pin) { // small
 
@@ -891,10 +877,10 @@ int smooth02(int pin) {
 void driftLeft(int negDrift) {
   neg = 1;
   if (negDrift == 1) {
-    enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35; // degree to rotate
+    enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35; // (2*pi*r == perimeter) * (2 * oneGridInterruptspeed200 == radius in pulse) * (percentage of whole circle) - compensation
     enRight = driftRatio * enLeft;
   } else {
-    enRight = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35; // degree to rotate
+    enRight = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35;
     enLeft = driftRatio * enRight;
   }
   leftCompensate = 0;
@@ -905,7 +891,7 @@ void driftLeft(int negDrift) {
   md.init();
   
   if (negDrift == 1)
-    md.setSpeeds(200, 200 * driftRatio); // n ~ radius of the circle // remember to change the ratio in "countRightDrift()"
+    md.setSpeeds(200, 200 * driftRatio); // driftRatio ~ radius of the circle
   else 
     md.setSpeeds(200 * driftRatio, 200);
 
