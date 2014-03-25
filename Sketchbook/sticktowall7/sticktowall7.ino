@@ -31,6 +31,8 @@
 #define frontThreshold 350
 #define leftThreshold 300
 // right threshold: ---580---460---420
+#define leftDesiredMax 0
+#define leftDesiredMin 0
 
 #define driftRatio 1.9
 
@@ -550,9 +552,20 @@ void goAhead4(int grid) {
   enLeft = enRight = oneGridInterruptspeed200 * grid;
   leftCompensate = 0;
 
-  int pre = 0;
-  int cur = 0;
- 
+  // correct using left sensor //////////
+  // if (disL < leftThreshold) {
+  //   if (disL < leftDesiredMin) {
+  //       enRight += 10;
+  //       enLeft -= 10;
+  //   }
+  //   else if (disL > leftDesiredMax) {
+  //       enLeft += 10;
+  //       enRight -= 10;
+  //   }
+  // }
+  ////////////////////
+
+
   setTimerInterrupt();
   attachInterrupt(1, countRight, RISING);
 
@@ -560,18 +573,7 @@ void goAhead4(int grid) {
   md.setSpeeds(200, 200);
   while (enLeft--) {
     while (digitalRead(enLeftPin)); // change to catch the posedge
-
-    // if (enLeft % 100)
-    //   md.setM1Speed((200 + leftCompensate) * neg);
-
     while (!digitalRead(enLeftPin)); // change to catch the posedge
-
-    // while (!(!pre & cur)) {
-    //   pre = digitalRead(enLeftPin);
-    //   delay(1);
-    //   cur = digitalRead(enLeftPin);
-    // }
-    // pre = 1;
   }
 
   detachInterrupt(1);
