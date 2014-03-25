@@ -427,3 +427,104 @@ void checklistA6() {
   driftLeft();
   goAhead4(1);
 }
+
+void correct2() {
+  int des = N[Nnow];
+  int now = getHeading();
+  int temp;
+  int spe = 100;
+
+  temp = des - now;
+  if (temp < 0) temp += 360;
+
+  if (temp < 180)
+    des = (now + (int)(0.5 * temp)) % 360;
+  else
+    des = (now - (int)(0.5 * (360 - temp)) + 360) % 360;
+
+  temp  = des - now;
+  if (temp < 0) temp += 360;
+
+  if (temp < 180) {
+  } else {
+    temp = 360 - temp;
+  }
+
+  while (temp > 1) {
+    now = getHeading();
+    temp  = des - now;
+    if (temp < 0) temp += 360;
+    if (temp < 180) {
+      md.setSpeeds(spe, -spe);
+    }
+    else {
+      temp = 360 - temp;
+      md.setSpeeds(-spe, spe);
+    }
+  }
+
+  md.setBrakes(400, 400);
+}
+
+void go(int stopConditon) {
+  leftEmpty = 0; // number of empty space on the left
+  while (1) {
+    // correct();
+    correctPosition(0);
+
+    disL = smooth21(leftHeadPin) - 8;
+    disFL = smooth21(leftFrontPin) - 10;
+    disFM = -1;
+    while (disFM == -1)
+      disFM = PWM_Mode_getDis() - 1;
+    disFR = smooth21(rightFrontPin) - 10;
+    disR = smooth02(rearPin) - 16;
+
+    Serial.println("================");
+    Serial.println("SL" + String(disL, DEC));
+    Serial.println("SFL" + String(disFL, DEC));
+    Serial.println("SFM" + String(disFM, DEC));
+    Serial.println("SFR" + String(disFR, DEC));
+    // Serial.println("SR" + String(disR, DEC));
+
+    if (disL > 10)
+      leftEmpty++;
+    else
+      leftEmpty = 0;
+
+    if (leftEmpty == 3) {
+      leftEmpty = 0;
+      rotateLeft4(1);
+      correct();
+      goAhead4(1);
+      correct();
+      
+      Serial.println('L');
+      Serial.println("G1");
+      continue;
+    }
+
+    if (disFL < 10 || disFR < 10 || disFM < 10) {
+      rotateLeft4(-1);
+      correct();
+
+      Serial.println('R');
+
+      leftEmpty = 0;
+      if (disFR > 10 && disFM > 10)
+        leftEmpty = 1;
+      continue;
+    }
+    goAhead4(1);
+    correct();
+    Serial.println("G1");
+
+    if (stopConditon == 0) {
+      if (curPos[0] > goalX - 2 && curPos[1] > goalY - 2)
+        break;  
+    } else {
+      if (Serial.available() && Serial.read() == 'S')
+        break;
+    }
+  }
+}

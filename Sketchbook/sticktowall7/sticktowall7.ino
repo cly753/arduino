@@ -3,7 +3,7 @@
 // -1. test G1 - G10
 // 0. drift
 // 1. brake
-// 2. global PID for goAhead and rotation!
+// 2. global PID for goAhead and rotation
 
 
 #include <DualVNH5019MotorShield.h>
@@ -11,12 +11,9 @@
 #include <HMC5883L.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-// #include <PID_v1.h>
 
-#define oneGridspeed150 290 // ?
 #define oneGridInterruptspeed200 288 // ?
 
-// #define one360speed150 1600
 #define one90speed150 380
 #define one90speed200 387
 #define one90speed300 390 // ? 
@@ -24,10 +21,6 @@
 
 #define one90Interruptspeed200 397
 #define one90ToRightInterruptspeed200 397
-
-#define leftCompensate350 18 // ?
-#define leftCompensate250 5
-#define leftCompensate150 5
 
 #define urPWM 13
 #define urTRIG 5
@@ -39,18 +32,13 @@
 #define enRightPin 3
 
 #define frontThreshold 350
-#define sideThreshold 300
+#define leftThreshold 300
 // right threshold: ---580---460---420
 
 #define driftRatio 1.9
 
-// #define goalX 4 // 19
-// #define goalY 3 // 14
-
 DualVNH5019MotorShield md;
 HMC5883L compass;
-// double input, output, target;
-// PID pid(&input, &output, &target, 4, 1, 0, DIRECT);
 
 int curPos[2]; // [0]: X, [1]: Y
 int goalX;
@@ -74,68 +62,6 @@ volatile int leftCompensate;
 volatile int neg;
 volatile int negDrift;
 
-void go(int stopConditon) {
-  leftEmpty = 0; // number of empty space on the left
-  while (1) {
-    // correct();
-    correctPosition(0);
-
-    disL = smooth21(leftHeadPin) - 8;
-    disFL = smooth21(leftFrontPin) - 10;
-    disFM = -1;
-    while (disFM == -1)
-      disFM = PWM_Mode_getDis() - 1;
-    disFR = smooth21(rightFrontPin) - 10;
-    disR = smooth02(rearPin) - 16;
-
-    Serial.println("================");
-    Serial.println("SL" + String(disL, DEC));
-    Serial.println("SFL" + String(disFL, DEC));
-    Serial.println("SFM" + String(disFM, DEC));
-    Serial.println("SFR" + String(disFR, DEC));
-    // Serial.println("SR" + String(disR, DEC));
-
-    if (disL > 10)
-      leftEmpty++;
-    else
-      leftEmpty = 0;
-
-    if (leftEmpty == 3) {
-      leftEmpty = 0;
-      rotateLeft4(1);
-      correct();
-      goAhead4(1);
-      correct();
-      
-      Serial.println('L');
-      Serial.println("G1");
-      continue;
-    }
-
-    if (disFL < 10 || disFR < 10 || disFM < 10) {
-      rotateLeft4(-1);
-      correct();
-
-      Serial.println('R');
-
-      leftEmpty = 0;
-      if (disFR > 10 && disFM > 10)
-        leftEmpty = 1;
-      continue;
-    }
-    goAhead4(1);
-    correct();
-    Serial.println("G1");
-
-    if (stopConditon == 0) {
-      if (curPos[0] > goalX - 2 && curPos[1] > goalY - 2)
-        break;  
-    } else {
-      if (Serial.available() && Serial.read() == 'S')
-        break;
-    }
-  }
-}
 void go2() {
   leftEmpty = 0; // number of empty space on the left
   while (1) {
@@ -162,7 +88,7 @@ void go2() {
     Serial.println("SFM" + String(disFM, DEC));
     Serial.println("SFR" + String(disFR, DEC));
 
-    if (disL < sideThreshold)
+    if (disL < leftThreshold)
       leftEmpty++;
     else
       leftEmpty = 0;
@@ -239,7 +165,7 @@ void go3() {
     Serial.println("SFM" + String(disFM, DEC));
     Serial.println("SFR" + String(disFR, DEC));
 
-    if (disL < sideThreshold)
+    if (disL < leftThreshold)
       leftEmpty++;
     else
       leftEmpty = 0;
@@ -309,43 +235,6 @@ void correct() {
       md.setSpeeds(spe, -spe);
     else 
       md.setSpeeds(-spe, spe);
-  }
-
-  md.setBrakes(400, 400);
-}
-void correct2() {
-  int des = N[Nnow];
-  int now = getHeading();
-  int temp;
-  int spe = 100;
-
-  temp = des - now;
-  if (temp < 0) temp += 360;
-
-  if (temp < 180)
-    des = (now + (int)(0.5 * temp)) % 360;
-  else
-    des = (now - (int)(0.5 * (360 - temp)) + 360) % 360;
-
-  temp  = des - now;
-  if (temp < 0) temp += 360;
-
-  if (temp < 180) {
-  } else {
-    temp = 360 - temp;
-  }
-
-  while (temp > 1) {
-    now = getHeading();
-    temp  = des - now;
-    if (temp < 0) temp += 360;
-    if (temp < 180) {
-      md.setSpeeds(spe, -spe);
-    }
-    else {
-      temp = 360 - temp;
-      md.setSpeeds(-spe, spe);
-    }
   }
 
   md.setBrakes(400, 400);
@@ -538,15 +427,7 @@ void setPins() {
   pinMode(urTRIG, OUTPUT);
   pinMode(urPWM, INPUT);
 }
-void storeDirection() {
-  delay(100);
-  int now = getHeading();
-  delay(100);
-  now = (now + getHeading()) / 2;
-  for (int i = 0; i < 8; i++)
-    N[i] = (now + i * 45) % 360;
-  Nnow = 0;
-}
+
 void storeDirectionByRotation() {
   Nnow = 0;
   N[0] = getHeading();
@@ -615,34 +496,6 @@ int PWM_Mode_getDis() {
   digitalWrite(urTRIG, HIGH);
   return pulseIn(urPWM, LOW) / 50;
 }
-int getDis21(int pin) { // small
-
-  return 12343.85 * pow(analogRead(pin),-1.15);
-}
-int getDis02(int pin) { // big
-
-    return 30431 * pow(analogRead(pin), -1.169);
-}
-// bool isEmpty21front(int pin) {
-//   int ana = analogRead(pin);
-//   Serial.print(pin);
-//   Serial.print(" ");
-//   Serial.println(ana);
-
-//   return ana < 280;
-// }
-// bool isEmpty21side(int pin) {
-//   int ana = analogRead(pin);
-//   Serial.print(pin);
-//   Serial.print(" ");
-//   Serial.println(ana);
-
-//   return ana < 400;
-// }
-// bool isEmpty02(int pin) {
-
-//   // return analogRead(pin) < ;
-// }
 int getHeading() {
   // MagnetometerScaled scaled = compass.ReadScaledAxis();
   // float heading = atan2(scaled.YAxis + 2, scaled.XAxis + 105);
@@ -699,52 +552,7 @@ void rotateLeft4(int times) {
   md.setBrakes(400, 400);
   // brake();
 }
-void goAhead3(int grid) {
-  int neg = 1;
-  if (grid < 0) neg = -1;
-  int need = grid * oneGridspeed150 * neg;
 
-  int spe = 150 * neg;
-  
-  int a = need / 100;
-  int b = need % 100; // need = a * 100 + b
-
-  // target = N[Nnow];
-
-  md.setSpeeds(spe + leftCompensate150 * neg, spe);
-
-  for (int i = 0; i < a; i++) {
-    need = 100;
-    while (need--) {
-      while (digitalRead(enLeftPin));
-      while (!digitalRead(enLeftPin));
-    }
-
-    // input = (int)smoothOutput(getHeading(), inputWindow, inputSum, inputMarker);
-    // // input = getHeading();
-    // pid.Compute();
-    // output *= neg;
-    // Serial.println("========");
-    // Serial.println(target);
-    // Serial.println(input);
-    // Serial.println(output);
-    // md.setSpeeds(spe + (leftCompensate150 + output) * neg, spe - output * neg);
-  }
-
-  while (b--) {
-    while (digitalRead(enLeftPin));
-    while (!digitalRead(enLeftPin));
-  }
-
-  md.setBrakes(400, 400);
-  
-  // if (grid == 1) {
-  //   if (Nnow == 0) curPos[0]++;
-  //   if (Nnow == 2) curPos[1]++;
-  //   if (Nnow == 4) curPos[0]--;
-  //   if (Nnow == 6) curPos[1]--;
-  // }
-}
 void goAhead4(int grid) {
   neg = 1;
   enLeft = enRight = oneGridInterruptspeed200 * grid;
@@ -838,34 +646,19 @@ ISR(TIMER1_COMPA_vect) {
     md.setM1Speed((200 + leftCompensate) * neg); // need test <---------
 }
 
-int smooth21(int pin) {
-  int small = 1000;
+int smooth(int pin) {
+  int small = 2000;
   int big = -10;
   int sum = 0;
   int temp = 0;
 
-  for (int i = 0; i < 5; i++) {
-    temp = getDis21(pin);
+  temp = analogRead(pin);
+  for (int i = 0; i < 3; i++) {
+    delay(50);
+    temp = analogRead(pin);
     small = min(small, temp);
     big = max(big, temp);
     sum += temp;
-    // delay(50);
-  }
-  sum = sum - small - big;
-  return sum / 3;
-}
-int smooth02(int pin) {
-  int small = 1000;
-  int big = -10;
-  int sum = 0;
-  int temp = 0;
-
-  for (int i = 0; i < 5; i++) {
-    temp = getDis02(pin);
-    small = min(small, temp);
-    big = max(big, temp);
-    sum += temp;
-    // delay(50);
   }
   sum = sum - small - big;
   return sum / 3;
