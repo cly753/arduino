@@ -4,8 +4,6 @@
 // 0. drift
 // 1. brake
 // 2. global PID for goAhead and rotation
-
-
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 #include <HMC5883L.h>
@@ -14,11 +12,10 @@
 
 #define oneGridInterruptspeed200 288 // ?
 
-#define one90speed150 380
-#define one90speed200 387
-#define one90speed300 390 // ? 
-#define one90speed400 380
-
+// #define one90speed150 380
+// #define one90speed200 387
+// #define one90speed300 390 // ? 
+// #define one90speed400 380
 #define one90Interruptspeed200 397
 #define one90ToRightInterruptspeed200 397
 
@@ -447,11 +444,6 @@ void setCompass() {
   compass = HMC5883L();
   compass.SetMeasurementMode(Measurement_Continuous);
 }
-// void setPID() {
-//   pid.SetMode(AUTOMATIC);
-//   pid.SetOutputLimits(-100, 100);
-//   pid.SetSampleTime(200); // ???
-// }
 void PWM_Mode_Setup() {
   // pinMode(urTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
   // digitalWrite(urTRIG,HIGH);                  // Set to HIGH
