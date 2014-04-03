@@ -1,23 +1,16 @@
-// to do
-// -2. test rotation right after goAhead
-// -1. test G1 - G10
-// 0. drift
-// 1. brake
-// 2. global PID for goAhead and rotation
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 #include <HMC5883L.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define oneGridInterruptspeed200 288 // ?
+#define oneGridInterruptspeed200 289 // ?
 
-// #define one90speed150 380
-// #define one90speed200 387
-// #define one90speed300 390 // ? 
-// #define one90speed400 380
-#define one90Interruptspeed200 397
-#define one90ToRightInterruptspeed200 397
+#define one90Interruptspeed200 391
+#define one90ToRightInterruptspeed200 390
+
+#define one45Interruptspeed200 198
+#define one45ToRightInterruptspeed200 198
 
 #define urPWM 13
 #define urTRIG 5
@@ -30,11 +23,16 @@
 
 #define frontThreshold 350
 #define leftThreshold 300
-// right threshold: ---580---460---420
-#define leftDesiredMax 0
-#define leftDesiredMin 0
+// right threshold: ---530---410---330
+#define leftDesiredMax 500
+#define leftDesiredMin 400
+#define nToCorrect 3
 
-#define driftRatio 1.9
+#define driftSpeed 130
+#define driftToLeftInterruptEnLeft 500 // radius * (2 * pi) * (0.25) * (289 / 10) + calibration
+#define driftToRightInterruptEnRight 500
+#define driftToLeftRatio 2.75 // size of the drift circle // 
+#define driftToRightRatio 2.75
 
 DualVNH5019MotorShield md;
 HMC5883L compass;
@@ -53,39 +51,54 @@ int disFM;
 int disL;
 int disR;
 
-int pause;
+int nLeft; // after nLeft move, call 
 
 volatile int enLeft;
 volatile int enRight;
 volatile int leftCompensate;
 volatile int neg;
-volatile int negDrift;
+volatile int driftToLeft;
 
 void go2() {
   leftEmpty = 0; // number of empty space on the left
   while (1) {
-    // while (!Serial.available() || Serial.read() != 'S');
+
     // correct();
     correctPosition(0);
+    delay(50);
+    correctPositionByIRSensor(0);
+    delay(50);
+    // if (correctDirectionByIRSensor())
+      // nLeft = nToCorrect;
 
-    pause = 50;
+    if (nLeft-- == 0) {
+      rotateToCorrect();
+      nLeft = nToCorrect;
+    }
+
+    int pause = 25;
 
     delay(pause);
-    disL = analogRead(leftHeadPin);
+    disL = smoothByMedian(leftHeadPin, 0);
     delay(pause);
-    disFL = analogRead(leftFrontPin);
+    disFL = smoothByMedian(leftFrontPin, 0);
     delay(pause);
     disFM = -1;
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
     delay(pause);
-    disFR = analogRead(rightFrontPin);
+    disFR = smoothByMedian(rightFrontPin, 0);
+    delay(pause);
+    disR = smoothByMedian(rearPin, 0);
 
     Serial.println("================");
     Serial.println("SL" + String(disL, DEC));
     Serial.println("SFL" + String(disFL, DEC));
     Serial.println("SFM" + String(disFM, DEC));
     Serial.println("SFR" + String(disFR, DEC));
+    Serial.println("SR" + String(disR, DEC));
+
+    // while (!Serial.available() || Serial.read() != 'S'); // sense, wait for 'S', then go
 
     if (disL < leftThreshold)
       leftEmpty++;
@@ -95,9 +108,8 @@ void go2() {
     if (leftEmpty == 3) {
       leftEmpty = 0;
       rotateLeft4(1);
-      correct();
+      delay(750);
       goAhead4(1);
-      correct();
       
       Serial.println('L');
       Serial.println("G1");
@@ -106,7 +118,6 @@ void go2() {
 
     if (disFL > frontThreshold || disFR > frontThreshold || disFM < 10) {
       rotateLeft4(-1);
-      correct();
 
       Serial.println('R');
 
@@ -116,97 +127,92 @@ void go2() {
       continue;
     }
     goAhead4(1);
-    correct();
     Serial.println("G1");
 
     if (curPos[0] >= goalX - 1 && goalX + 1 >= curPos[0] && curPos[1] >= goalY - 1 && goalY + 1 >= curPos[1])
       break;  
   }
 }
-void go3() {
-  leftEmpty = 0; // number of empty space on the left
-  while (1) {
-    // while (!Serial.available() || Serial.read() != 'S');
-    // correct();
-    correctPosition(0);
+// void go3() {
+//   leftEmpty = 0; // number of empty space on the left
+//   while (1) {
+//     // while (!Serial.available() || Serial.read() != 'S');
+//     // correct();
+//     correctPosition(0);
 
-    Serial.println("================x, y");
-    Serial.print(curPos[0]);
-    Serial.print(", ");
-    Serial.println(curPos[1]);
+//     Serial.println("================x, y");
+//     Serial.print(curPos[0]);
+//     Serial.print(", ");
+//     Serial.println(curPos[1]);
 
-    if (curPos[0] == 19 && Nnow == 0){
-      rotateLeft4(-1); 
-      continue;
-    }
+//     if (curPos[0] == 19 && Nnow == 0){
+//       rotateLeft4(-1); 
+//       continue;
+//     }
 
-    if (curPos[1] == 2 && Nnow == 6) {
-      rotateLeft4(-1);
-      continue;
-    }
+//     if (curPos[1] == 2 && Nnow == 6) {
+//       rotateLeft4(-1);
+//       continue;
+//     }
 
-    pause = 50;
+//     pause = 50;
 
-    delay(pause);
-    disL = analogRead(leftHeadPin);
-    delay(pause);
-    disFL = analogRead(leftFrontPin);
-    delay(pause);
-    disFM = -1;
-    while (disFM == -1)
-      disFM = PWM_Mode_getDis() - 1;
-    delay(pause);
-    disFR = analogRead(rightFrontPin);
+//     delay(pause);
+//     disL = smoothByMedian(leftHeadPin, 0);
+//     delay(pause);
+//     disFL = smoothByMedian(leftFrontPin, 0);
+//     delay(pause);
+//     disFM = -1;
+//     while (disFM == -1)
+//       disFM = PWM_Mode_getDis() - 1;
+//     delay(pause);
+//     disFR = smoothByMedian(rightFrontPin, 0);
 
-    Serial.println("================");
-    Serial.println("SL" + String(disL, DEC));
-    Serial.println("SFL" + String(disFL, DEC));
-    Serial.println("SFM" + String(disFM, DEC));
-    Serial.println("SFR" + String(disFR, DEC));
+//     Serial.println("================");
+//     Serial.println("SL" + String(disL, DEC));
+//     Serial.println("SFL" + String(disFL, DEC));
+//     Serial.println("SFM" + String(disFM, DEC));
+//     Serial.println("SFR" + String(disFR, DEC));
 
-    if (disL < leftThreshold)
-      leftEmpty++;
-    else
-      leftEmpty = 0;
+//     if (disL < leftThreshold)
+//       leftEmpty++;
+//     else
+//       leftEmpty = 0;
 
-    if (leftEmpty == 3) {
-      leftEmpty = 0;
-      rotateLeft4(1);
-      correct();
-      goAhead4(1);
-      correct();
+//     if (leftEmpty == 3) {
+//       leftEmpty = 0;
+//       rotateLeft4(1);
+//       correct();
+//       goAhead4(1);
+//       correct();
       
-      Serial.println('L');
-      Serial.println("G1");
-      continue;
-    }
+//       Serial.println('L');
+//       Serial.println("G1");
+//       continue;
+//     }
 
-    if (disFL > frontThreshold || disFR > frontThreshold || disFM < 10) {
-      rotateLeft4(-1);
-      correct();
+//     if (disFL > frontThreshold || disFR > frontThreshold || disFM < 10) {
+//       rotateLeft4(-1);
+//       correct();
 
-      Serial.println('R');
+//       Serial.println('R');
 
-      leftEmpty = 0;
-      if (disFR < frontThreshold && disFM > 10)
-        leftEmpty = 1;
-      continue;
-    }
-    goAhead4(1);
-    correct();
-    Serial.println("G1");
+//       leftEmpty = 0;
+//       if (disFR < frontThreshold && disFM > 10)
+//         leftEmpty = 1;
+//       continue;
+//     }
+//     goAhead4(1);
+//     correct();
+//     Serial.println("G1");
 
-    if (curPos[0] >= goalX - 1 && goalX + 1 >= curPos[0] && curPos[1] >= goalY - 1 && goalY + 1 >= curPos[1])
-      break;  
-  }
-}
+//     if (curPos[0] >= goalX - 1 && goalX + 1 >= curPos[0] && curPos[1] >= goalY - 1 && goalY + 1 >= curPos[1])
+//       break;  
+//   }
+// }
 
 void correct() {
-  // if (1)
-  //   return ;
-
-  // if (curPos[1] >= 13 && curPos[0] < 15)
-  //   return;
+  // return ;
 
   int des = N[Nnow];
   int now = getHeading();
@@ -219,10 +225,8 @@ void correct() {
   delta = abs(temp);
   temp2 = 360 - delta;
 
-  if (getDir(now, des))
-    md.setSpeeds(spe, -spe);
-  else
-    md.setSpeeds(-spe, spe);
+  if (min(delta, temp2) < 10)
+    return ;
 
   while (min(delta, temp2) > 1) {
     now = getHeading();
@@ -243,15 +247,40 @@ bool getDir(int now, int des) {
   if (des < 0) des += 360;
   return des < 180;
 }
-void correctPosition(int atGoal) {
+boolean correctDirectionByIRSensor() {
+  int spe = 60;
+  int n = 0;
+
+  int disFL = smoothByMedian(leftFrontPin, 1);
+  int disFR = smoothByMedian(rightFrontPin, 1);
+
+  if (disFL < frontThreshold || disFR < frontThreshold)
+    return false; // not corrected
+
+  while (1) {
+    n++;
+    if (n == 1000)
+      break;
+    if (disFL > disFR) {
+      md.setSpeeds(-spe, spe);
+    } else {
+      md.setSpeeds(spe, -spe);
+    }
+    disFL = smoothByMedian(leftFrontPin, 1);
+    disFR = smoothByMedian(rightFrontPin, 1);
+  }
+  md.setBrakes(400, 400);
+
+  return true; // corrected
+}
+boolean correctPosition(int atGoal) {
   int front = -1;
   delay(50);
   while (front == -1)
     front = PWM_Mode_getDis() - 1;
 
-  if (atGoal == 0)
-    if (front > 10)
-      return ;
+  if (atGoal == 0 && front > 10)
+    return false; // not corrected
 
   while (front != 5) {   
     if (front < 5)
@@ -261,55 +290,86 @@ void correctPosition(int atGoal) {
     front = PWM_Mode_getDis() - 1;
   }
   md.setBrakes(400, 400);
+
+  return true; // corrected
+}
+boolean correctPositionByIRSensor(int atGoal) {
+  delay(50);
+  int front = max(smoothByMedian(leftFrontPin, 1), smoothByMedian(rightFrontPin, 1));
+
+  if (atGoal == 0 && front < frontThreshold)
+    return false; // not corrected
+
+  long t = millis();
+  while (front > 460 || front < 440) {
+    if (millis() - t > 3000)
+      break;
+    if (front > 460)
+      md.setSpeeds(-100, -100);
+    else
+      md.setSpeeds(100, 100);
+    front = max(smoothByMedian(leftFrontPin, 1), smoothByMedian(rightFrontPin, 1));
+  }
+  md.setBrakes(400, 400);
+  return true; // corrected
+}
+void rotateToCorrect() {
+  //rotate left
+  int pause = 100;
+  rotateLeft4(1);
+  delay(pause);
+  
+  //detect if there are obstacles in front of left front and right front sensors
+  correctDirectionByIRSensor();
+  delay(pause);
+  correctPositionByIRSensor(0);
+  delay(pause);
+  //rotate right
+  rotateLeft4(-1);
+  delay(pause);
 }
 void correctToGoal() {
   for (int i = 0; i < 3; i++) {
-    correct();
 
-    delay(100);
-    disFL = analogRead(leftFrontPin);
-    delay(100);
+    int pause = 20;
+    delay(pause);
+    disFL = smoothByMedian(leftFrontPin, 0);
+    delay(pause);
     disFM = -1;
     while (disFM == -1)
       disFM = PWM_Mode_getDis() - 1;
-    delay(100);
+    delay(pause);
     disFM = (PWM_Mode_getDis() - 1 + disFM) / 2;
-    delay(100);
-    disFR = analogRead(rightFrontPin);
+    delay(pause);
+    disFR = smoothByMedian(rightFrontPin, 0);
 
     if (disFL < frontThreshold && disFM > 10 && disFR < frontThreshold) {
       goAhead4(1);
-      // Serial.println("G1");
     }
-
-    correctPosition(1);
 
     if (Nnow == 0 || Nnow == 4) {
       rotateLeft4(-1);
-      // Serial.println("R");
     } else {
       rotateLeft4(1);
-      // Serial.println("L");
     } 
   }
 
-  correctPosition(1);
+  correctPositionByIRSensor(1);
+  correctDirectionByIRSensor();
 
   if (Nnow == 0 || Nnow == 2) {
     while (Nnow != 4) {
-      rotateLeft4(1);
-      // Serial.println("L");
-      correct();
-      delay(100);
+      delay(300);
+      rotateLeft4(-1);
     }
   } else {
     while (Nnow != 0) {
-      rotateLeft4(1);
-      // Serial.println("L");
-      correct();
-      delay(100);
+      delay(300);
+      rotateLeft4(-1);
     }
   }
+
+  rotateToCorrect();
 
   curPos[0] = goalX;
   curPos[1] = goalY;
@@ -323,46 +383,37 @@ void setup() {
   md.init();
   setCompass();
 
-  // while (!Serial.available() || Serial.read() != 'S');
+  while (!Serial.available() || Serial.read() != 'S');
 
-  // storeDirectionByRotation();
-  // correct();
+  nLeft = nToCorrect;
 
-  // goalX = 19; // 19
-  // goalY = 14; // 14
-  // curPos[0] = curPos[1] = 2;
-  // go2();
+  goalX = 19; // 19
+  goalY = 14; // 14
+  curPos[0] = curPos[1] = 2;
+  go2();
 
-  // Serial.println("X");
-  // correctToGoal();
-  // delay(1000);
+  Serial.println("X");
+  correctToGoal();
+  delay(2000);
 
-  // goalX = 2;
-  // goalY = 2;
-  // go2();
+  goalX = 2;
+  goalY = 2;
+  go2();
 
-  // // delay(2000);
-  // Serial.println("Y");
-  // correctToGoal();
+  correctToGoal();
+  delay(2000);
+  Serial.println("Y");
 
-  // while (!Serial.available() || Serial.read() != 'S');
+  while (!Serial.available() || Serial.read() != 'S');
 
-  // // // delay(4000);
-
-  // // goalX = 19; // 19
-  // // goalY = 14; // 14
-  // // go3();
-  // // // Serial.println("X");
-  // // correctToGoal();
-
-  // pcMode();
+  pcMode();
 }
 void loop() {
   Serial.println("==========");
-  // disL = smooth21(leftHeadPin) - 8;
-  // disFL = smooth21(leftFrontPin) - 10;
-  // disFR = smooth21(rightFrontPin) - 10;
-  // disR = smooth02(rearPin) - 16;
+  // disL = smoothByMedian(leftHeadPin, 0);
+  // disFL = smoothByMedian(leftFrontPin, 0);
+  // disFR = smoothByMedian(rightFrontPin, 0);
+  disR = smoothByMedian(rearPin, 0);
   // disFM = -1;
   // while (disFM == -1) {
   //   disFM = PWM_Mode_getDis() - 1;
@@ -370,13 +421,9 @@ void loop() {
 
   // Serial.println("SL" + String(disL, DEC));
   // Serial.println("SFL" + String(disFL, DEC));
-  // Serial.println("SFM" + String(disFM, DEC));
   // Serial.println("SFR" + String(disFR, DEC));
-  // Serial.println("SR" + String(disR, DEC));
-
-  // Serial.println(disFM);
-  // Serial.print(" ");
-  // Serial.println(analogRead(leftHeadPin));
+  Serial.println("SR" + String(disR, DEC));
+  // Serial.println("SFM" + String(disFM, DEC));
 
   // Serial.println("==========");
 
@@ -412,7 +459,7 @@ void loop() {
 
   // Serial.print(getDis02(rearPin));
   // Serial.println("cm");
-  Serial.println(analogRead(rearPin));
+  // Serial.println(analogRead(leftHeadPin));
   delay(500);
 }
 
@@ -430,15 +477,15 @@ void setPins() {
 void storeDirectionByRotation() {
   Nnow = 0;
   N[0] = getHeading();
-  delay(100);
+  delay(50);
   N[0] = (N[0] + getHeading()) / 2;
   for (int i = 1; i < 4; i++) {
     rotateLeft4(-1);
-    delay(500);
+    correctDirectionByIRSensor();
+    correctPositionByIRSensor(0);
+    delay(300);
     N[i*2] = getHeading();
-    Serial.print("N");
-    Serial.println(N[i*2]);
-    delay(500);
+    delay(300);
   }
   rotateLeft4(-1);
 }
@@ -462,8 +509,11 @@ char getChar() {
 void pcMode() {
   int cmd;
   while (1) {
+  //   correctPosition(0);
+  //   correctPositionByIRSensor(0);
+  //   correctDirectionByIRSensor();
     cmd = getChar();
-
+    delay(300);
     if (cmd == 'G') {
       int len = 0;
       while (1) {
@@ -473,14 +523,40 @@ void pcMode() {
         
         len = len * 10 + digit;
       }
-      goAhead4(len);
-      correctPosition(0);
+      goAhead5(len);
     } else if (cmd == 'L') {
       rotateLeft4(1);
     } else if (cmd == 'R') {
       rotateLeft4(-1);
     } else if (cmd == 'C') {
-      correct();
+      correctToGoal();
+    }
+  }
+}
+void pcModeAllByPulse() {
+  int cmd;
+  int len;
+  while (1) {
+  //   correctPosition(0);
+  //   correctPositionByIRSensor(0);
+  //   correctDirectionByIRSensor();
+    delay(300);
+    cmd = getChar();
+    len = 0;
+    while (1) {
+      char c = getChar();
+      if (c == '|') break;
+      int digit = c - '0';
+      
+      len = len * 10 + digit;
+    }
+
+    if (cmd == 'G') {
+      goAhead5(len);
+    } else if (cmd == 'L') {
+      rotateLeft5(1, len);
+    } else if (cmd == 'R') {
+      rotateLeft5(-1, len);
     }
   }
 }
@@ -546,25 +622,38 @@ void rotateLeft4(int times) {
   md.setBrakes(400, 400);
   // brake();
 }
+void rotateLeft5(int toLeft, int numOfPulse) { // ==================================================== does not update the direction!!
+  neg = - toLeft;
+
+  enLeft = enRight = numOfPulse;
+  // if (toLeft)
+  //   enLeft = enRight = one45Interruptspeed200;
+  // else
+  //   enLeft = enRight = one45ToRightInterruptspeed200;
+
+  leftCompensate = 0;
+
+  setTimerInterrupt();
+  attachInterrupt(1, countRight, RISING);
+  md.init(); // =================================================???
+
+  md.setSpeeds(200 * neg, -200 * neg);
+
+  while (enLeft--) {
+    while (digitalRead(enLeftPin));
+    while (!digitalRead(enLeftPin));
+  }
+  detachInterrupt(1);
+  detachTimerInterrupt();
+
+  md.setBrakes(400, 400);
+  // brake();
+}
 
 void goAhead4(int grid) {
   neg = 1;
   enLeft = enRight = oneGridInterruptspeed200 * grid;
   leftCompensate = 0;
-
-  // correct using left sensor //////////
-  // if (disL < leftThreshold) {
-  //   if (disL < leftDesiredMin) {
-  //       enRight += 10;
-  //       enLeft -= 10;
-  //   }
-  //   else if (disL > leftDesiredMax) {
-  //       enLeft += 10;
-  //       enRight -= 10;
-  //   }
-  // }
-  ////////////////////
-
 
   setTimerInterrupt();
   attachInterrupt(1, countRight, RISING);
@@ -582,10 +671,36 @@ void goAhead4(int grid) {
   md.setBrakes(400, 400);
   // brake();
 
-  Serial.println("=============");
-  Serial.println("enLeft : " + String(enLeft));
-  Serial.println("enRight: " + String(enRight));
-  Serial.println("leftCompensate: " + String(leftCompensate));
+  // Serial.println("=============");
+  // Serial.println("enLeft : " + String(enLeft));
+  // Serial.println("enRight: " + String(enRight));
+  // Serial.println("leftCompensate: " + String(leftCompensate));
+
+  if (Nnow == 0) curPos[0]++;
+  if (Nnow == 2) curPos[1]++;
+  if (Nnow == 4) curPos[0]--;
+  if (Nnow == 6) curPos[1]--;
+}
+void goAhead5(int numOfPulse) {
+  neg = 1;
+  enLeft = enRight = numOfPulse;
+  leftCompensate = 0;
+
+  setTimerInterrupt();
+  attachInterrupt(1, countRight, RISING);
+
+  md.init(); // =================================================???
+  md.setSpeeds(200, 200);
+  while (enLeft--) {
+    while (digitalRead(enLeftPin));
+    while (!digitalRead(enLeftPin));
+  }
+
+  detachInterrupt(1);
+  detachTimerInterrupt();
+
+  md.setBrakes(400, 400);
+  // brake();
 
   if (Nnow == 0) curPos[0]++;
   if (Nnow == 2) curPos[1]++;
@@ -601,16 +716,75 @@ void brake() {
   }
 }
 
+int smoothByMedian(int pin, int fast) {
+  int a;
+  if (fast == 1) {
+    a = analogRead(pin);
+    return (a + analogRead(pin)) / 2;
+  }
+
+  int data[5];
+  int length = 5;
+  int temp;
+  for (int i = 0; i < length; i++) {
+    delay(25);
+    data[i] = analogRead(pin);
+  }
+
+  for (int i = length - 1; i > length / 2 - 1; i--) {
+    for (int j = 0; j < i; j++) {
+      if (data[j] < data[j+1]) {
+        temp = data[j];
+        data[j] = data[j+1];
+        data[j+1] = temp;
+      }
+    }
+  }
+
+  return data[length/2];
+}
+
+void driftLeft(int driftToLeft) { 
+  // leftCompensate = 0;
+  neg = 1;
+
+  if (driftToLeft == 1) {
+    // enLeft = driftToLeftInterruptEnLeft;
+    enRight = driftToLeftRatio * driftToLeftInterruptEnLeft;
+  } else {
+    enRight = driftToRightInterruptEnRight;
+    // enLeft = driftRatio * driftToRightInterruptEnRight;
+  }
+
+  // setTimerInterrupt();
+  attachInterrupt(1, countRightDrift, RISING);
+
+  md.init();
+  
+  if (driftToLeft == 1)
+    md.setSpeeds(driftSpeed, driftSpeed * driftToLeftRatio);
+  else 
+    md.setSpeeds(driftSpeed * driftToRightRatio, driftSpeed);
+
+  // while (enLeft--) {
+  //   while (digitalRead(enLeftPin));
+  //   while (!digitalRead(enLeftPin));
+  // }
+
+  while (enRight > 0);
+
+  detachInterrupt(1);
+  // detachTimerInterrupt();
+  md.setBrakes(400, 400);
+}
+
 void countRight() {
   enRight--;
   leftCompensate = enLeft - enRight;
 }
 void countRightDrift() {
+
   enRight--;
-  if (negDrift == 1)
-    leftCompensate = driftRatio * enLeft - enRight;
-  else
-    leftCompensate = enLeft - driftRatio * enRight;
 }
 
 void setTimerInterrupt() {
@@ -638,55 +812,4 @@ void detachTimerInterrupt() {
 ISR(TIMER1_COMPA_vect) {
 
     md.setM1Speed((200 + leftCompensate) * neg); // need test <---------
-}
-
-int smooth(int pin) {
-  int small = 2000;
-  int big = -10;
-  int sum = 0;
-  int temp = 0;
-
-  temp = analogRead(pin);
-  for (int i = 0; i < 3; i++) {
-    delay(50);
-    temp = analogRead(pin);
-    small = min(small, temp);
-    big = max(big, temp);
-    sum += temp;
-  }
-  sum = sum - small - big;
-  return sum / 3;
-}
-
-void driftLeft(int negDrift) {
-  neg = 1;
-  if (negDrift == 1) {
-    enLeft = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35; // (2*pi*r == perimeter) * (2 * oneGridInterruptspeed200 == radius in pulse) * (percentage of whole circle) - compensation
-    enRight = driftRatio * enLeft;
-  } else {
-    enRight = (2 * PI) * (2 * oneGridInterruptspeed200) * 0.25 - 35;
-    enLeft = driftRatio * enRight;
-  }
-  leftCompensate = 0;
-
-  // setTimerInterrupt();
-  // attachInterrupt(1, countRightDrift, RISING);
-
-  md.init();
-  
-  if (negDrift == 1)
-    md.setSpeeds(200, 200 * driftRatio); // driftRatio ~ radius of the circle
-  else 
-    md.setSpeeds(200 * driftRatio, 200);
-
-  Serial.println("enLeft : " + String(enLeft, DEC));
-  Serial.println("enRight: " + String(enRight, DEC));
-
-  while (enLeft--) {
-    while (digitalRead(enLeftPin));
-    while (!digitalRead(enLeftPin));
-  }
-  // detachInterrupt(1);
-  // detachTimerInterrupt();
-  md.setBrakes(400, 400);
 }

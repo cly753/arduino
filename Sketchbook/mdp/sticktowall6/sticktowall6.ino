@@ -468,9 +468,19 @@ void setup() {
   // // correctToGoal();
 
   // pcMode();
+  
+  while (1) {
+    while (!Serial.available() || Serial.read() != 'S');
+    // goAhead4(1);
+    driftLeft(1);
+    // goAhead4(1);
+
+    while (!Serial.available() || Serial.read() != 'S');
+    driftLeft(-1);
+  }
 }
 void loop() {
-  Serial.println("==========");
+  // Serial.println("==========");
   // disL = smooth21(leftHeadPin) - 8;
   // disFL = smooth21(leftFrontPin) - 10;
   // disFR = smooth21(rightFrontPin) - 10;
@@ -524,8 +534,8 @@ void loop() {
 
   // Serial.print(getDis02(rearPin));
   // Serial.println("cm");
-  Serial.println(analogRead(rearPin));
-  delay(500);
+  // Serial.println(analogRead(rearPin));
+  // delay(500);
 }
 
 void setPins() {
@@ -791,7 +801,7 @@ void goAhead4(int grid) {
   if (Nnow == 6) curPos[1]--;
 }
 void brake() {
-  for (int i = 0; i < 50; i++) { // ABS...-  -
+  for (int i = 0; i < 50; i++) {
     delay(1);
     md.setBrakes(275, 275);
     delay(1);
