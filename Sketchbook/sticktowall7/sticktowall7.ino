@@ -9,8 +9,8 @@
 #define one90Interruptspeed200 393
 #define one90ToRightInterruptspeed200 392
 
-#define one90Interruptspeed350 388
-#define one90ToRightInterruptspeed350 388
+#define one90Interruptspeed350 363
+#define one90ToRightInterruptspeed350 363
 
 #define urPWM 13
 #define urTRIG 5
@@ -307,28 +307,28 @@ void setup() {
   md.init();
   setCompass();
 
-  // while (!Serial.available() || Serial.read() != 'S');
+  while (!Serial.available() || Serial.read() != 'S');
 
-  // nLeft = nToCorrect;
+  nLeft = nToCorrect;
 
-  // goalX = 19; // 19
-  // goalY = 14; // 14
-  // curPos[0] = curPos[1] = 2;
-  // go2();
+  goalX = 19; // 19
+  goalY = 14; // 14
+  curPos[0] = curPos[1] = 2;
+  go2();
 
-  // Serial.println("X");
-  // correctToGoal();
-  // delay(2000);
+  Serial.println("X");
+  correctToGoal();
+  delay(2000);
 
-  // goalX = 2;
-  // goalY = 2;
-  // go2();
+  goalX = 2;
+  goalY = 2;
+  go2();
 
-  // correctToGoal();
-  // delay(2000);
-  // Serial.println("Y");
+  correctToGoal();
+  delay(2000);
+  Serial.println("Y");
 
-  // while (!Serial.available() || Serial.read() != 'S');
+  while (!Serial.available() || Serial.read() != 'S');
 
   pcMode();
 }
@@ -437,7 +437,7 @@ void pcMode() {
   //   correctPositionByIRSensor(0);
   //   correctDirectionByIRSensor();
     cmd = getChar();
-    delay(300);
+    // delay(300);
     if (cmd == 'G') {
       int len = 0;
       while (1) {
@@ -464,7 +464,7 @@ void pcModeAllByPulse() {
   //   correctPosition(0);
   //   correctPositionByIRSensor(0);
   //   correctDirectionByIRSensor();
-    delay(300);
+    // delay(300);
     cmd = getChar();
     len = 0;
     while (1) {
