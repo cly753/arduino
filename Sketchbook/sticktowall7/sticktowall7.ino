@@ -63,8 +63,6 @@ volatile int fastMode;
 void go2() {
   leftEmpty = 0; // number of empty space on the left
   while (1) {
-
-    // correct();
     correctPosition(0);
     delay(50);
     correctPositionByIRSensor(0);
@@ -135,42 +133,6 @@ void go2() {
   }
 }
 
-void correct() {
-  // return ;
-
-  int des = N[Nnow];
-  int now = getHeading();
-  int delta;
-  int temp;
-  int temp2;
-  int spe = 100;
-
-  temp  = des - now;
-  delta = abs(temp);
-  temp2 = 360 - delta;
-
-  if (min(delta, temp2) < 10)
-    return ;
-
-  while (min(delta, temp2) > 1) {
-    now = getHeading();
-    temp  = des - now;
-    delta = abs(temp);
-    temp2 = 360 - delta;
-
-    if (getDir(now, des))
-      md.setSpeeds(spe, -spe);
-    else 
-      md.setSpeeds(-spe, spe);
-  }
-
-  md.setBrakes(400, 400);
-}
-bool getDir(int now, int des) {
-  des -= now;
-  if (des < 0) des += 360;
-  return des < 180;
-}
 boolean correctDirectionByIRSensor() {
   int spe = 60;
   int n = 0;
@@ -303,9 +265,7 @@ void setup() {
   Serial.begin(9600);
   setPins();
   Wire.begin();
-  // PWM_Mode_Setup();
   md.init();
-  setCompass();
 
   while (!Serial.available() || Serial.read() != 'S');
 
@@ -397,33 +357,10 @@ void setPins() {
   pinMode(urTRIG, OUTPUT);
   pinMode(urPWM, INPUT);
 }
-
-void storeDirectionByRotation() {
-  Nnow = 0;
-  N[0] = getHeading();
-  delay(50);
-  N[0] = (N[0] + getHeading()) / 2;
-  for (int i = 1; i < 4; i++) {
-    rotateLeft4(-1);
-    correctDirectionByIRSensor();
-    correctPositionByIRSensor(0);
-    delay(300);
-    N[i*2] = getHeading();
-    delay(300);
-  }
-  rotateLeft4(-1);
-}
-void setCompass() {
-  compass = HMC5883L();
-  compass.SetMeasurementMode(Measurement_Continuous);
-}
-void PWM_Mode_Setup() {
-  // pinMode(urTRIG,OUTPUT);                     // A low pull on pin COMP/TRIG
-  // digitalWrite(urTRIG,HIGH);                  // Set to HIGH
-  // pinMode(urPWM0, INPUT);                      // Sending Enable PWM mode command
-  // uint8_t EnPwmCmd[4]={0x44,0x02,0xbb,0x01};
-  // for(int i=0;i<4;i++)
-  //     Serial.write(EnPwmCmd[i]);
+int PWM_Mode_getDis() {
+  digitalWrite(urTRIG, LOW);
+  digitalWrite(urTRIG, HIGH);
+  return pulseIn(urPWM, LOW) / 50;
 }
 
 char getChar() {
@@ -433,11 +370,7 @@ char getChar() {
 void pcMode() {
   int cmd;
   while (1) {
-  //   correctPosition(0);
-  //   correctPositionByIRSensor(0);
-  //   correctDirectionByIRSensor();
     cmd = getChar();
-    // delay(300);
     if (cmd == 'G') {
       int len = 0;
       while (1) {
@@ -456,54 +389,6 @@ void pcMode() {
       correctToGoal();
     }
   }
-}
-void pcModeAllByPulse() {
-  int cmd;
-  int len;
-  while (1) {
-  //   correctPosition(0);
-  //   correctPositionByIRSensor(0);
-  //   correctDirectionByIRSensor();
-    // delay(300);
-    cmd = getChar();
-    len = 0;
-    while (1) {
-      char c = getChar();
-      if (c == '|') break;
-      int digit = c - '0';
-      
-      len = len * 10 + digit;
-    }
-
-    if (cmd == 'G') {
-      goAhead5(len);
-    } else if (cmd == 'L') {
-      rotateLeft5(1, len);
-    } else if (cmd == 'R') {
-      rotateLeft5(-1, len);
-    }
-  }
-}
-
-int PWM_Mode_getDis() {
-  digitalWrite(urTRIG, LOW);
-  digitalWrite(urTRIG, HIGH);
-  return pulseIn(urPWM, LOW) / 50;
-}
-int getHeading() {
-  // MagnetometerScaled scaled = compass.ReadScaledAxis();
-  // float heading = atan2(scaled.YAxis + 2, scaled.XAxis + 105);
-  MagnetometerRaw raw = compass.ReadRawAxis();
-  float heading = atan2(raw.YAxis + 27, raw.XAxis - 92);
-  if (heading < 0)
-    heading += 2 * PI;
-  // Serial.println((int)(raw.XAxis + 109) + " " + (int)(raw.YAxis - 13));
-  // Serial.print(raw.XAxis - 92);
-  // Serial.print(" ");
-  // Serial.println(raw.YAxis + 27);
-  // Serial.println(heading * 180.0 / M_PI);
-  // return heading * 180.0 / M_PI;
-  return heading * 180.0 / PI; // change M_PI to PI <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
 void rotateLeft4(int times) {
@@ -611,14 +496,6 @@ void goAhead5(int numOfPulse) {
   // md.setBrakes(400, 400);
   brake();
 }
-void brake() {
-  for (int i = 0; i < 50; i++) { // ABS...-  -
-    delay(1);
-    md.setBrakes(285, 285);
-    delay(1);
-    md.setBrakes(400, 400);
-  }
-}
 
 int smoothByMedian(int pin, int fast) {
   int a;
@@ -648,40 +525,6 @@ int smoothByMedian(int pin, int fast) {
   return data[length/2];
 }
 
-void driftLeft(int driftToLeft) { 
-  // leftCompensate = 0;
-  neg = 1;
-
-  if (driftToLeft == 1) {
-    // enLeft = driftToLeftInterruptEnLeft;
-    enRight = driftToLeftRatio * driftToLeftInterruptEnLeft;
-  } else {
-    enRight = driftToRightInterruptEnRight;
-    // enLeft = driftRatio * driftToRightInterruptEnRight;
-  }
-
-  // setTimerInterrupt();
-  attachInterrupt(1, countRightDrift, RISING);
-
-  md.init();
-  
-  if (driftToLeft == 1)
-    md.setSpeeds(driftSpeed, driftSpeed * driftToLeftRatio);
-  else 
-    md.setSpeeds(driftSpeed * driftToRightRatio, driftSpeed);
-
-  // while (enLeft--) {
-  //   while (digitalRead(enLeftPin));
-  //   while (!digitalRead(enLeftPin));
-  // }
-
-  while (enRight > 0);
-
-  detachInterrupt(1);
-  // detachTimerInterrupt();
-  md.setBrakes(400, 400);
-}
-
 void countRight() {
   enRight--;
   leftCompensate = enLeft - enRight;
@@ -690,7 +533,6 @@ void countRightDrift() {
 
   enRight--;
 }
-
 void setTimerInterrupt() {
   // initialize Timer1
   cli();          // disable global interrupts
